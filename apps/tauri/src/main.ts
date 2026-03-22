@@ -46,6 +46,14 @@ type SpotifyStatus = {
   token_cache_path: string;
 };
 
+type SpotifyAuthDebug = {
+  stage: string;
+  detail: string;
+  state: string;
+  redirect_uri: string;
+  token_cache_path: string;
+};
+
 type FireTvAction =
   | "connect"
   | "ensure_awake"
@@ -73,6 +81,7 @@ let currentConfig: AppConfig = { ...defaultConfig };
 let currentHealth: HealthStatus | null = null;
 let currentFireTvStatus: FireTvStatus | null = null;
 let currentSpotifyStatus: SpotifyStatus | null = null;
+let spotifyAuthDebug: SpotifyAuthDebug | null = null;
 let spotifyAuthUrl = "";
 let spotifyCallbackInput = "";
 let spotifyAuthMode = "Auto callback in localhost";
@@ -310,6 +319,11 @@ function render() {
             }>
               Check Spotify status
             </button>
+            <button class="button-secondary" id="spotify-debug-button" type="button" ${
+              busy ? "disabled" : ""
+            }>
+              Inspect auth
+            </button>
             <button class="button-secondary" id="spotify-start-auth-button" type="button" ${
               busy ? "disabled" : ""
             }>
@@ -365,6 +379,31 @@ function render() {
 
           <p class="meta">${escapeHtml(spotifyAuthMode)}</p>
 
+          ${
+            spotifyAuthDebug
+              ? `
+                <div class="status-list remote-status">
+                  <article class="status-card">
+                    <h3>Auth stage</h3>
+                    <p class="status-copy">${escapeHtml(spotifyAuthDebug.stage)}</p>
+                  </article>
+                  <article class="status-card">
+                    <h3>Auth detail</h3>
+                    <p class="status-copy">${escapeHtml(spotifyAuthDebug.detail)}</p>
+                  </article>
+                  <article class="status-card">
+                    <h3>OAuth state</h3>
+                    <p class="status-copy">${escapeHtml(spotifyAuthDebug.state || "(empty)")}</p>
+                  </article>
+                  <article class="status-card">
+                    <h3>Redirect URI</h3>
+                    <p class="status-copy">${escapeHtml(spotifyAuthDebug.redirect_uri)}</p>
+                  </article>
+                </div>
+              `
+              : ""
+          }
+
           <details>
             <summary>Manual fallback</summary>
             <label>
@@ -416,6 +455,11 @@ function render() {
     .querySelector<HTMLButtonElement>("#spotify-start-auth-button")
     ?.addEventListener("click", () => {
       void startSpotifyAuth();
+    });
+  document
+    .querySelector<HTMLButtonElement>("#spotify-debug-button")
+    ?.addEventListener("click", () => {
+      void inspectSpotifyAuth();
     });
   document
     .querySelector<HTMLButtonElement>("#spotify-finish-auth-button")
@@ -495,6 +539,7 @@ async function loadAll(message = "Configuration loaded.") {
       firetvIp: currentConfig.firetv_ip,
     });
     currentSpotifyStatus = await invoke<SpotifyStatus>("spotify_status");
+    spotifyAuthDebug = await invoke<SpotifyAuthDebug>("spotify_debug_auth_flow");
     spotifyAuthUrl = currentSpotifyStatus.auth_url ?? "";
     busy = false;
     flash(message);
@@ -570,6 +615,7 @@ async function startSpotifyAuth() {
   try {
     await persistCurrentConfig();
     const result = await invoke<AuthUrlResult>("spotify_start_auth");
+    spotifyAuthDebug = await invoke<SpotifyAuthDebug>("spotify_debug_auth_flow");
     spotifyAuthUrl = result.url;
     spotifyAuthMode = "Waiting for Spotify callback on localhost...";
     render();
@@ -586,6 +632,25 @@ async function startSpotifyAuth() {
   } catch (error) {
     busy = false;
     spotifyAuthMode = "Automatic Spotify auth failed; use manual callback input if needed";
+    flash(asMessage(error), true);
+    render();
+  }
+}
+
+async function inspectSpotifyAuth() {
+  syncConfigFromInputs();
+  busy = true;
+  flash("Inspecting Spotify auth setup...");
+  render();
+
+  try {
+    await persistCurrentConfig();
+    spotifyAuthDebug = await invoke<SpotifyAuthDebug>("spotify_debug_auth_flow");
+    busy = false;
+    flash("Spotify auth inspection refreshed.");
+    render();
+  } catch (error) {
+    busy = false;
     flash(asMessage(error), true);
     render();
   }

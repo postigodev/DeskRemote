@@ -1,5 +1,5 @@
 use desk_remote_core::{
-    ActionResult, AuthUrlResult,
+    ActionResult, AuthUrlResult, SpotifyAuthDebug,
     config::{config_file_path, AppConfig},
     firetv::{self, FireTvAction, FireTvStatus},
     spotify::{self, SpotifyStatus},
@@ -96,6 +96,14 @@ pub async fn spotify_finish_auth(code_or_callback: String) -> Result<SpotifyStat
 pub async fn spotify_finish_auth_via_local_callback() -> Result<SpotifyStatus, String> {
     let config = AppConfig::load().map_err(|e| e.to_string())?;
     spotify::finish_auth_via_local_callback(&config)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn spotify_debug_auth_flow() -> Result<SpotifyAuthDebug, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    spotify::debug_auth_flow(&config)
         .await
         .map_err(|e| e.to_string())
 }

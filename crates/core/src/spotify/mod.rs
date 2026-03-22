@@ -1,4 +1,4 @@
-use crate::config::{app_data_dir, AppConfig};
+use crate::{config::{app_data_dir, AppConfig}, SpotifyAuthDebug};
 use anyhow::{anyhow, bail, Context, Result};
 use rand::{distr::Alphanumeric, Rng};
 use rspotify::{
@@ -9,12 +9,7 @@ use rspotify::{
 };
 use serde::Serialize;
 use std::{fs, path::PathBuf};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpListener,
-    time::{sleep, timeout, Duration},
-};
-use url::Url;
+use tokio::time::{sleep, Duration};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SpotifyStatus {
@@ -152,32 +147,41 @@ pub async fn finish_auth_via_local_callback(config: &AppConfig) -> Result<Spotif
 
     let spotify = build_spotify(config)?;
     ensure_token_cache_dir()?;
+    let socket_addr = spotify
+        .get_socket_address(&config.spotify_redirect_url)
+        .ok_or_else(|| anyhow!("Spotify redirect URL must be an HTTP loopback URL with a port"))?;
+    let listener_client = build_spotify(config)?;
 
-    let redirect = Url::parse(&config.spotify_redirect_url)
-        .context("Spotify redirect URL must be a valid absolute URL")?;
-    let host = redirect
-        .host_str()
-        .ok_or_else(|| anyhow!("Spotify redirect URL must include a host"))?;
-    let port = redirect
-        .port_or_known_default()
-        .ok_or_else(|| anyhow!("Spotify redirect URL must include a port"))?;
-    let path = if redirect.path().is_empty() {
-        "/"
-    } else {
-        redirect.path()
-    };
-
-    let listener = TcpListener::bind((host, port))
+    let code = tokio::task::spawn_blocking(move || listener_client.get_authcode_listener(socket_addr))
         .await
-        .with_context(|| format!("failed to bind local Spotify callback listener on {host}:{port}"))?;
+        .context("Spotify callback listener task failed")?
+        .context("failed to receive Spotify callback through localhost listener")?;
 
-    let callback_url = timeout(Duration::from_secs(180), receive_callback_url(&listener, path))
+    spotify
+        .request_token(&code)
         .await
-        .context("timed out waiting for Spotify callback")??;
-
-    exchange_callback_or_code(&spotify, &callback_url).await?;
+        .context("failed to exchange Spotify authorization code for a token")?;
 
     get_status(config).await
+}
+
+pub async fn debug_auth_flow(config: &AppConfig) -> Result<SpotifyAuthDebug> {
+    if !spotify_configured(config) {
+        bail!("Spotify client ID, client secret, and redirect URL are required");
+    }
+
+    let spotify = build_spotify(config)?;
+    let socket_addr = spotify
+        .get_socket_address(&config.spotify_redirect_url)
+        .ok_or_else(|| anyhow!("Spotify redirect URL must be an HTTP loopback URL with a port"))?;
+
+    Ok(SpotifyAuthDebug {
+        stage: "ready".into(),
+        detail: format!("Listener socket resolved to {socket_addr}"),
+        state: config.spotify_auth_state.clone(),
+        redirect_uri: config.spotify_redirect_url.clone(),
+        token_cache_path: token_cache_path()?.display().to_string(),
+    })
 }
 
 pub async fn toggle_on_tv(config: &AppConfig) -> Result<String> {
@@ -267,23 +271,49 @@ fn build_spotify(config: &AppConfig) -> Result<AuthCodeSpotify> {
 }
 
 async fn ensure_token(spotify: &AuthCodeSpotify) -> Result<()> {
-    let _ = spotify.read_token_cache(true).await;
+    if let Ok(Some(cached_token)) = spotify.read_token_cache(true).await {
+        let is_expired = cached_token.is_expired();
 
-    let has_token = spotify
-        .get_token()
+        {
+            let token_mutex = spotify.get_token();
+            let mut guard = token_mutex
+                .lock()
+                .await
+                .map_err(|error| anyhow!("{error:?}"))?;
+            *guard = Some(cached_token);
+        }
+
+        if !is_expired {
+            return Ok(());
+        }
+
+        spotify
+            .refresh_token()
+            .await
+            .context("failed to refresh expired Spotify token")?;
+        return Ok(());
+    }
+
+    let token_mutex = spotify.get_token();
+    let guard = token_mutex
         .lock()
         .await
-        .map_err(|error| anyhow!("{error:?}"))?
-        .is_some();
+        .map_err(|error| anyhow!("{error:?}"))?;
 
-    if !has_token {
+    if let Some(token) = guard.as_ref() {
+        if !token.is_expired() {
+            return Ok(());
+        }
+    } else {
         bail!("Spotify is not authenticated yet");
     }
+
+    drop(guard);
 
     spotify
         .refresh_token()
         .await
-        .context("failed to refresh Spotify token")?;
+        .context("failed to refresh expired Spotify token")?;
 
     Ok(())
 }
@@ -344,128 +374,6 @@ async fn exchange_callback_or_code(spotify: &AuthCodeSpotify, code_or_callback: 
         .await
         .context("failed to exchange Spotify authorization code for a token")?;
 
-    Ok(())
-}
-
-async fn receive_callback_url(listener: &TcpListener, expected_path: &str) -> Result<String> {
-    loop {
-        let (mut stream, _) = listener
-            .accept()
-            .await
-            .context("failed to accept Spotify callback connection")?;
-
-        let mut buffer = [0_u8; 4096];
-        let bytes_read = stream
-            .read(&mut buffer)
-            .await
-            .context("failed to read Spotify callback request")?;
-
-        if bytes_read == 0 {
-            continue;
-        }
-
-        let request = String::from_utf8_lossy(&buffer[..bytes_read]);
-        let Some(request_line) = request.lines().next() else {
-            continue;
-        };
-
-        let mut parts = request_line.split_whitespace();
-        let method = parts.next().unwrap_or_default();
-        let target = parts.next().unwrap_or_default();
-
-        if method != "GET" {
-            write_http_response(
-                &mut stream,
-                "405 Method Not Allowed",
-                "Only GET is supported for the Spotify callback.",
-            )
-            .await?;
-            continue;
-        }
-
-        let callback_url = format!("http://127.0.0.1{target}");
-        let parsed = match Url::parse(&callback_url) {
-            Ok(url) => url,
-            Err(_) => {
-                write_http_response(
-                    &mut stream,
-                    "400 Bad Request",
-                    "Could not parse the Spotify callback request.",
-                )
-                .await?;
-                continue;
-            }
-        };
-
-        if parsed.path() != expected_path {
-            write_http_response(
-                &mut stream,
-                "404 Not Found",
-                "This local callback path does not match the configured Spotify redirect URI.",
-            )
-            .await?;
-            continue;
-        }
-
-        let code = parsed
-            .query_pairs()
-            .find_map(|(key, value)| (key == "code").then(|| value.into_owned()));
-
-        if code.is_some() {
-            write_http_response(
-                &mut stream,
-                "200 OK",
-                "Spotify auth complete. You can close this tab and return to Desk Remote.",
-            )
-            .await?;
-            return Ok(callback_url);
-        }
-
-        let error = parsed
-            .query_pairs()
-            .find_map(|(key, value)| (key == "error").then(|| value.into_owned()));
-
-        if let Some(error) = error {
-            write_http_response(
-                &mut stream,
-                "400 Bad Request",
-                "Spotify returned an error. You can close this tab and retry from Desk Remote.",
-            )
-            .await?;
-            bail!("Spotify authorization failed: {error}");
-        }
-
-        write_http_response(
-            &mut stream,
-            "400 Bad Request",
-            "Spotify callback did not include an authorization code.",
-        )
-        .await?;
-    }
-}
-
-async fn write_http_response(
-    stream: &mut tokio::net::TcpStream,
-    status: &str,
-    message: &str,
-) -> Result<()> {
-    let body = format!(
-        "<html><body style=\"font-family:Segoe UI,sans-serif;padding:24px;background:#111;color:#f4f4f4;\"><h1>Desk Remote</h1><p>{message}</p></body></html>"
-    );
-    let response = format!(
-        "HTTP/1.1 {status}\r\ncontent-type: text/html; charset=utf-8\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
-        body.len(),
-        body
-    );
-
-    stream
-        .write_all(response.as_bytes())
-        .await
-        .context("failed to write Spotify callback response")?;
-    stream
-        .flush()
-        .await
-        .context("failed to flush Spotify callback response")?;
     Ok(())
 }
 
