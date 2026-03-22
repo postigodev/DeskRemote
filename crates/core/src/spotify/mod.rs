@@ -239,6 +239,13 @@ pub async fn toggle_on_tv(config: &AppConfig) -> Result<String> {
     Ok(format!("Transferred Spotify playback to {target_name}"))
 }
 
+pub async fn start_on_tv(config: &AppConfig) -> Result<String> {
+    let firetv_result = crate::firetv::prepare_spotify_session(&config.firetv_ip)?;
+    let spotify_result = toggle_on_tv(config).await?;
+
+    Ok(format!("{}. {}", firetv_result.summary, spotify_result))
+}
+
 fn spotify_configured(config: &AppConfig) -> bool {
     !config.spotify_client_id.trim().is_empty()
         && !config.spotify_client_secret.trim().is_empty()

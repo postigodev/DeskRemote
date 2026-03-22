@@ -15,7 +15,8 @@ pub fn run() {
             commands::spotify_finish_auth,
             commands::spotify_finish_auth_via_local_callback,
             commands::spotify_debug_auth_flow,
-            commands::spotify_toggle_tv
+            commands::spotify_toggle_tv,
+            commands::start_spotify_on_tv
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

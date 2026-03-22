@@ -117,3 +117,13 @@ pub async fn spotify_toggle_tv() -> Result<ActionResult, String> {
 
     Ok(ActionResult { message })
 }
+
+#[command]
+pub async fn start_spotify_on_tv() -> Result<ActionResult, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let message = spotify::start_on_tv(&config)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(ActionResult { message })
+}

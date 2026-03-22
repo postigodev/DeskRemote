@@ -31,6 +31,14 @@ pub struct FireTvStatus {
     pub summary: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct FireTvPrepResult {
+    pub target: String,
+    pub awake: bool,
+    pub launched_spotify: bool,
+    pub summary: String,
+}
+
 pub fn status_summary(ip: &str) -> String {
     match get_status(ip) {
         Ok(status) => status.summary,
@@ -124,6 +132,34 @@ pub fn perform_action(ip: &str, action: FireTvAction) -> Result<String> {
             Ok(format!("Sent {:?} to {target}", action))
         }
     }
+}
+
+pub fn prepare_spotify_session(ip: &str) -> Result<FireTvPrepResult> {
+    let trimmed_ip = ip.trim();
+    if trimmed_ip.is_empty() {
+        bail!("Fire TV IP address is required");
+    }
+
+    ensure_adb_available()?;
+    let target = normalize_target(trimmed_ip);
+
+    if !connect(&target)? {
+        bail!("ADB could not establish a connection with {target}");
+    }
+
+    let awake = ensure_awake(&target, 4)?;
+    if !awake {
+        bail!("Fire TV at {target} did not wake after retries");
+    }
+
+    open_spotify(&target)?;
+
+    Ok(FireTvPrepResult {
+        target: target.clone(),
+        awake,
+        launched_spotify: true,
+        summary: format!("Connected to {target}, confirmed the screen is awake, and launched Spotify"),
+    })
 }
 
 fn adb_available() -> bool {

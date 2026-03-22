@@ -115,6 +115,13 @@ function render() {
               </div>
             </div>
           </div>
+          <div class="actions">
+            <button class="button-primary" id="start-spotify-on-tv-button" type="button" ${
+              busy ? "disabled" : ""
+            }>
+              Start Spotify On TV
+            </button>
+          </div>
         </section>
 
         <section class="panel-grid">
@@ -471,6 +478,11 @@ function render() {
     ?.addEventListener("click", () => {
       void toggleSpotifyOnTv();
     });
+  document
+    .querySelector<HTMLButtonElement>("#start-spotify-on-tv-button")
+    ?.addEventListener("click", () => {
+      void startSpotifyOnTv();
+    });
   document.querySelectorAll<HTMLButtonElement>(".remote-button").forEach((button) => {
     button.addEventListener("click", () => {
       const action = button.dataset.firetvAction as FireTvAction | undefined;
@@ -695,6 +707,30 @@ async function toggleSpotifyOnTv() {
     const result = await invoke<ActionResult>("spotify_toggle_tv");
     currentSpotifyStatus = await invoke<SpotifyStatus>("spotify_status");
     spotifyAuthUrl = currentSpotifyStatus.auth_url ?? spotifyAuthUrl;
+    busy = false;
+    flash(result.message);
+    render();
+  } catch (error) {
+    busy = false;
+    flash(asMessage(error), true);
+    render();
+  }
+}
+
+async function startSpotifyOnTv() {
+  syncConfigFromInputs();
+  busy = true;
+  flash("Preparing Fire TV and Spotify...");
+  render();
+
+  try {
+    await persistCurrentConfig();
+    const result = await invoke<ActionResult>("start_spotify_on_tv");
+    currentFireTvStatus = await invoke<FireTvStatus>("firetv_status", {
+      firetvIp: currentConfig.firetv_ip,
+    });
+    currentSpotifyStatus = await invoke<SpotifyStatus>("spotify_status");
+    currentHealth = await invoke<HealthStatus>("health_check");
     busy = false;
     flash(result.message);
     render();
