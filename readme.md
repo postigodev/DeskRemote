@@ -64,6 +64,13 @@ cd C:\Users\akuma\repos\desk-remote\apps\tauri
 pnpm tauri dev
 ```
 
+From the repository root:
+
+```powershell
+cd C:\Users\akuma\repos\desk-remote
+.\launch.ps1
+```
+
 This launches:
 - the Vite dev server
 - the Rust/Tauri backend
