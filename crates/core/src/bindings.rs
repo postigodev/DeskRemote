@@ -21,7 +21,8 @@ pub enum BindingAction {
 pub struct Binding {
     pub id: String,
     pub label: String,
-    pub trigger: String,
+    #[serde(default)]
+    pub hotkey: String,
     pub action: BindingAction,
 }
 
@@ -54,8 +55,14 @@ pub fn save_binding(mut binding: Binding) -> Result<BindingStore> {
         bail!("Binding label is required");
     }
 
-    if binding.trigger.trim().is_empty() {
-        bail!("Binding trigger is required");
+    binding.hotkey = binding.hotkey.trim().to_string();
+
+    if !binding.hotkey.is_empty()
+        && store.bindings.iter().any(|item| {
+            item.id != binding.id && item.hotkey.eq_ignore_ascii_case(&binding.hotkey)
+        })
+    {
+        bail!("Hotkey already in use: {}", binding.hotkey);
     }
 
     if let Some(existing) = store.bindings.iter_mut().find(|item| item.id == binding.id) {

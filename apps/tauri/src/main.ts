@@ -1,4 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
+import {
+  isRegistered as isGlobalShortcutRegistered,
+  register as registerGlobalShortcut,
+  unregister as unregisterGlobalShortcut,
+} from "@tauri-apps/plugin-global-shortcut";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 type AppConfig = {
@@ -95,7 +100,7 @@ type BindingAction =
 type Binding = {
   id: string;
   label: string;
-  trigger: string;
+  hotkey: string;
   action: BindingAction;
 };
 
@@ -117,6 +122,7 @@ let currentHealth: HealthStatus | null = null;
 let currentFireTvStatus: FireTvStatus | null = null;
 let currentFireTvApps: FireTvApp[] = [];
 let currentBindings: Binding[] = [];
+let registeredHotkeys: string[] = [];
 let currentSpotifyStatus: SpotifyStatus | null = null;
 let spotifyAuthDebug: SpotifyAuthDebug | null = null;
 let spotifyAuthUrl = "";
@@ -124,7 +130,7 @@ let spotifyCallbackInput = "";
 let spotifyAuthMode = "Auto callback in localhost";
 let fireTvAppFilter = "";
 let newBindingLabel = "";
-let newBindingTrigger = "";
+let newBindingHotkey = "";
 let newBindingActionType = "start_spotify_on_tv";
 let newBindingActionValue = "";
 let busy = false;
@@ -275,7 +281,7 @@ function render() {
         <section class="panel">
           <h2>Bindings</h2>
           <p class="hint">
-            Persist reusable actions now. This becomes the base for future hotkeys and tray shortcuts.
+            Persist reusable actions and optional global hotkeys. Leave hotkey empty if the binding is only for tray or manual execution.
           </p>
 
           <form class="form" id="binding-form">
@@ -284,8 +290,8 @@ function render() {
               <input id="binding-label" placeholder="Watch Spotify on TV" value="${escapeHtml(newBindingLabel)}" />
             </label>
             <label>
-              <span>Trigger</span>
-              <input id="binding-trigger" placeholder="manual, hotkey, tray..." value="${escapeHtml(newBindingTrigger)}" />
+              <span>Hotkey</span>
+              <input id="binding-hotkey" placeholder="Ctrl+Shift+S" value="${escapeHtml(newBindingHotkey)}" />
             </label>
             <label>
               <span>Action type</span>
@@ -311,7 +317,7 @@ function render() {
                         <article class="status-card app-card">
                           <div>
                             <h3>${escapeHtml(binding.label)}</h3>
-                            <p class="status-copy">${escapeHtml(binding.trigger)} · ${escapeHtml(describeBindingAction(binding.action))}</p>
+                            <p class="status-copy">${escapeHtml(binding.hotkey || "No hotkey")} · ${escapeHtml(describeBindingAction(binding.action))}</p>
                           </div>
                           <div class="actions">
                             <button class="button-secondary execute-binding-button" data-binding-id="${escapeHtml(binding.id)}" type="button" ${busy ? "disabled" : ""}>Run</button>
@@ -749,6 +755,43 @@ function describeBindingAction(action: BindingAction) {
   return "unknown";
 }
 
+async function syncGlobalHotkeys() {
+  const warnings: string[] = [];
+
+  for (const hotkey of registeredHotkeys) {
+    try {
+      if (await isGlobalShortcutRegistered(hotkey)) {
+        await unregisterGlobalShortcut(hotkey);
+      }
+    } catch (error) {
+      warnings.push(`Could not unregister ${hotkey}: ${asMessage(error)}`);
+    }
+  }
+
+  registeredHotkeys = [];
+
+  for (const binding of currentBindings) {
+    const hotkey = binding.hotkey.trim();
+    if (!hotkey) {
+      continue;
+    }
+
+    try {
+      await registerGlobalShortcut(hotkey, () => {
+        if (busy) {
+          return;
+        }
+        void executeBinding(binding.id);
+      });
+      registeredHotkeys.push(hotkey);
+    } catch (error) {
+      warnings.push(`Could not register ${hotkey}: ${asMessage(error)}`);
+    }
+  }
+
+  return warnings.join(" ");
+}
+
 async function onSave(event: SubmitEvent) {
   event.preventDefault();
   const form = event.currentTarget as HTMLFormElement;
@@ -796,9 +839,10 @@ async function loadAll(message = "Configuration loaded.") {
     currentFireTvApps = appCache.apps;
     const bindingStore = await invoke<BindingStore>("bindings_list");
     currentBindings = bindingStore.bindings;
+    const hotkeyMessage = await syncGlobalHotkeys();
     spotifyAuthUrl = currentSpotifyStatus.auth_url ?? "";
     busy = false;
-    flash(message);
+    flash(hotkeyMessage ? `${message} ${hotkeyMessage}` : message);
     render();
   } catch (error) {
     busy = false;
@@ -867,8 +911,9 @@ async function loadBindings(message = "Bindings loaded.") {
   try {
     const store = await invoke<BindingStore>("bindings_list");
     currentBindings = store.bindings;
+    const hotkeyMessage = await syncGlobalHotkeys();
     busy = false;
-    flash(message);
+    flash(hotkeyMessage ? `${message} ${hotkeyMessage}` : message);
     render();
   } catch (error) {
     busy = false;
@@ -889,8 +934,9 @@ async function saveBinding() {
       binding: buildBindingPayload(),
     });
     currentBindings = store.bindings;
+    const hotkeyMessage = await syncGlobalHotkeys();
     busy = false;
-    flash("Binding saved.");
+    flash(hotkeyMessage ? `Binding saved. ${hotkeyMessage}` : "Binding saved.");
     render();
   } catch (error) {
     busy = false;
@@ -928,8 +974,9 @@ async function deleteBinding(id: string) {
   try {
     const store = await invoke<BindingStore>("bindings_delete", { id });
     currentBindings = store.bindings;
+    const hotkeyMessage = await syncGlobalHotkeys();
     busy = false;
-    flash("Binding deleted.");
+    flash(hotkeyMessage ? `Binding deleted. ${hotkeyMessage}` : "Binding deleted.");
     render();
   } catch (error) {
     busy = false;
@@ -1196,8 +1243,8 @@ function syncConfigFromInputs() {
 function syncBindingInputs() {
   newBindingLabel =
     document.querySelector<HTMLInputElement>("#binding-label")?.value.trim() ?? newBindingLabel;
-  newBindingTrigger =
-    document.querySelector<HTMLInputElement>("#binding-trigger")?.value.trim() ?? newBindingTrigger;
+  newBindingHotkey =
+    document.querySelector<HTMLInputElement>("#binding-hotkey")?.value.trim() ?? newBindingHotkey;
   newBindingActionType =
     document.querySelector<HTMLInputElement>("#binding-action-type")?.value.trim() ??
     newBindingActionType;
@@ -1225,7 +1272,7 @@ function buildBindingPayload(): Binding {
   return {
     id: "",
     label: newBindingLabel,
-    trigger: newBindingTrigger,
+    hotkey: newBindingHotkey,
     action,
   };
 }
