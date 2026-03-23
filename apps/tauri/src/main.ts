@@ -4,6 +4,7 @@ import {
   register as registerGlobalShortcut,
   unregister as unregisterGlobalShortcut,
 } from "@tauri-apps/plugin-global-shortcut";
+import { createIcons, icons } from "lucide";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import packageJson from "../package.json";
 
@@ -151,10 +152,10 @@ function render() {
           <div><strong>Desk Remote</strong><p>Media control utility</p></div>
         </div>
         <nav class="sidebar-nav">
-          ${navButton("home", "Inicio")}
-          ${navGroup("playback", "Reproduccion", [["spotify", "Spotify"], ["quick-access", "Acceso rapido"], ["hotkeys", "Hotkeys"]])}
-          ${navGroup("firetv", "Fire TV", [["firetv-device", "ADB y dispositivo"], ["apps", "Apps"], ["remote", "Remote"]])}
-          ${navGroup("system", "Sistema", [["health", "Health"], ["general", "General"]])}
+          ${navButton("home", "Inicio", "house")}
+          ${navGroup("playback", "Reproduccion", [["spotify", "Spotify", "music-4"], ["quick-access", "Acceso rapido", "sparkles"], ["hotkeys", "Hotkeys", "keyboard"]])}
+          ${navGroup("firetv", "Fire TV", [["firetv-device", "ADB y dispositivo", "tv"], ["apps", "Apps", "grid-2x2"], ["remote", "Remote", "gamepad-2"]])}
+          ${navGroup("system", "Sistema", [["health", "Health", "activity"], ["general", "General", "settings-2"]])}
         </nav>
         <div class="sidebar-footer">
           <div class="sidebar-status ${currentFireTvStatus?.connected ? "is-good" : ""}">${currentFireTvStatus?.connected ? "Fire TV connected" : "Fire TV not connected"}</div>
@@ -178,6 +179,7 @@ function render() {
       </section>
     </main>
   `;
+  createIcons({ icons });
   bindEvents();
 }
 
@@ -227,7 +229,7 @@ function renderHome() {
           <div class="panel-header"><div><p class="panel-kicker">Favorites</p><h2>Acceso rapido</h2></div><button class="link-button" data-view="quick-access" type="button">Manage</button></div>
           ${
             favorites.length
-              ? `<div class="quick-grid">${favorites.map((binding) => `<button class="quick-tile execute-binding-button" data-binding-id="${escapeHtml(binding.id)}" type="button" ${busy ? "disabled" : ""}><span class="quick-icon">${escapeHtml(bindingIcon(binding.action))}</span><span>${escapeHtml(binding.label)}</span></button>`).join("")}</div>`
+              ? `<div class="quick-grid">${favorites.map((binding) => `<button class="quick-tile execute-binding-button" data-binding-id="${escapeHtml(binding.id)}" data-tooltip="${escapeHtml(describeBindingAction(binding.action))}" type="button" ${busy ? "disabled" : ""}><span class="quick-icon">${icon(bindingIcon(binding.action))}</span><span>${escapeHtml(binding.label)}</span></button>`).join("")}</div>`
               : emptyState("No quick actions yet", "Mark bindings as favorites to pin them here.", "quick-access", "Open Quick Access")
           }
         </article>
@@ -235,7 +237,7 @@ function renderHome() {
           <div class="panel-header"><div><p class="panel-kicker">Keyboard</p><h2>Accesos directos</h2></div><button class="link-button" data-view="hotkeys" type="button">Manage hotkeys</button></div>
           ${
             hotkeys.length
-              ? `<div class="shortcut-list">${hotkeys.map((binding) => `<article class="shortcut-row"><div class="shortcut-copy"><span class="shortcut-icon">${escapeHtml(bindingIcon(binding.action))}</span><div><h3>${escapeHtml(binding.label)}</h3><p>${escapeHtml(describeBindingAction(binding.action))}</p></div></div><kbd>${escapeHtml(binding.hotkey)}</kbd></article>`).join("")}</div>`
+              ? `<div class="shortcut-list">${hotkeys.map((binding) => `<article class="shortcut-row"><div class="shortcut-copy"><span class="shortcut-icon">${icon(bindingIcon(binding.action))}</span><div><h3>${escapeHtml(binding.label)}</h3><p>${escapeHtml(describeBindingAction(binding.action))}</p></div></div><kbd>${escapeHtml(binding.hotkey)}</kbd></article>`).join("")}</div>`
               : emptyState("No hotkeys configured", "Add a hotkey to any binding and it will appear here.", "hotkeys", "Open Hotkeys")
           }
         </article>
@@ -256,12 +258,12 @@ function renderHome() {
         <article class="panel utility-panel">
           <div class="panel-header"><div><p class="panel-kicker">Snapshot</p><h2>Device snapshot</h2></div></div>
           <div class="snapshot-list">
-            ${snapshotRow("Fire TV", currentConfig.firetv_ip || "Not configured")}
-            ${snapshotRow("Connection", currentFireTvStatus?.connected ? "Connected" : "Offline")}
-            ${snapshotRow("Screen", screenLabel(currentFireTvStatus?.screen_awake))}
-            ${snapshotRow("Spotify target", currentSpotifyStatus?.target_name ?? "Not detected")}
-            ${snapshotRow("Cached apps", String(currentFireTvApps.length))}
-            ${snapshotRow("Active hotkeys", String(hotkeys.length))}
+          ${snapshotRow("tv", "Fire TV", currentConfig.firetv_ip || "Not configured")}
+            ${snapshotRow("plug-zap", "Connection", currentFireTvStatus?.connected ? "Connected" : "Offline")}
+            ${snapshotRow("monitor-up", "Screen", screenLabel(currentFireTvStatus?.screen_awake))}
+            ${snapshotRow("music-4", "Spotify target", currentSpotifyStatus?.target_name ?? "Not detected")}
+            ${snapshotRow("grid-2x2", "Cached apps", String(currentFireTvApps.length))}
+            ${snapshotRow("keyboard", "Active hotkeys", String(hotkeys.length))}
           </div>
         </article>
         <article class="panel utility-panel">
@@ -333,7 +335,7 @@ function renderQuickAccess() {
         <div class="panel-header"><div><p class="panel-kicker">Preview</p><h2>Current favorites</h2></div></div>
         ${
           favorites.length
-            ? `<div class="quick-grid">${favorites.slice(0, 6).map((binding) => `<button class="quick-tile execute-binding-button" data-binding-id="${escapeHtml(binding.id)}" type="button" ${busy ? "disabled" : ""}><span class="quick-icon">${escapeHtml(bindingIcon(binding.action))}</span><span>${escapeHtml(binding.label)}</span></button>`).join("")}</div>`
+            ? `<div class="quick-grid">${favorites.slice(0, 6).map((binding) => `<button class="quick-tile execute-binding-button" data-binding-id="${escapeHtml(binding.id)}" data-tooltip="${escapeHtml(describeBindingAction(binding.action))}" type="button" ${busy ? "disabled" : ""}><span class="quick-icon">${icon(bindingIcon(binding.action))}</span><span>${escapeHtml(binding.label)}</span></button>`).join("")}</div>`
             : emptyStateText("No favorites pinned", "Mark a binding as favorite to make it appear here.")
         }
       </article>
@@ -437,11 +439,11 @@ function renderHealth() {
       <article class="panel">
         <div class="panel-header"><div><p class="panel-kicker">Checks</p><h2>Technical summary</h2></div></div>
         <div class="snapshot-list">
-          ${snapshotRow("Config path", currentHealth?.config_path ?? "Unavailable")}
-          ${snapshotRow("Fire TV summary", currentHealth?.firetv_summary ?? "Unavailable")}
-          ${snapshotRow("Spotify summary", currentHealth?.spotify_summary ?? "Unavailable")}
-          ${snapshotRow("Fire TV status", currentFireTvStatus?.summary ?? "Unavailable")}
-          ${snapshotRow("Spotify status", currentSpotifyStatus?.summary ?? "Unavailable")}
+          ${snapshotRow("folder-open", "Config path", currentHealth?.config_path ?? "Unavailable")}
+          ${snapshotRow("tv", "Fire TV summary", currentHealth?.firetv_summary ?? "Unavailable")}
+          ${snapshotRow("music-4", "Spotify summary", currentHealth?.spotify_summary ?? "Unavailable")}
+          ${snapshotRow("activity", "Fire TV status", currentFireTvStatus?.summary ?? "Unavailable")}
+          ${snapshotRow("activity", "Spotify status", currentSpotifyStatus?.summary ?? "Unavailable")}
         </div>
       </article>
     </section>
@@ -454,11 +456,11 @@ function renderGeneral() {
       <article class="panel">
         <div class="panel-header"><div><p class="panel-kicker">Configuration</p><h2>General</h2></div></div>
         <div class="snapshot-list">
-          ${snapshotRow("App version", packageJson.version)}
-          ${snapshotRow("Config path", currentHealth?.config_path ?? "Unavailable")}
-          ${snapshotRow("Stored bindings", String(currentBindings.length))}
-          ${snapshotRow("Cached apps", String(currentFireTvApps.length))}
-          ${snapshotRow("Active hotkeys", String(currentBindings.filter((binding) => binding.hotkey.trim()).length))}
+          ${snapshotRow("badge-info", "App version", packageJson.version)}
+          ${snapshotRow("folder-open", "Config path", currentHealth?.config_path ?? "Unavailable")}
+          ${snapshotRow("command", "Stored bindings", String(currentBindings.length))}
+          ${snapshotRow("grid-2x2", "Cached apps", String(currentFireTvApps.length))}
+          ${snapshotRow("keyboard", "Active hotkeys", String(currentBindings.filter((binding) => binding.hotkey.trim()).length))}
         </div>
       </article>
       <article class="panel">
@@ -497,13 +499,13 @@ function bindingForm() {
   `;
 }
 
-function navButton(view: ViewId, label: string, child = false) {
-  return `<button class="nav-link ${child ? "is-child " : ""}${currentView === view ? "is-active" : ""}" data-view="${view}" type="button">${escapeHtml(label)}</button>`;
+function navButton(view: ViewId, label: string, iconName: string, child = false) {
+  return `<button class="nav-link ${child ? "is-child " : ""}${currentView === view ? "is-active" : ""}" data-view="${view}" type="button"><span class="nav-link-copy">${icon(iconName)}<span>${escapeHtml(label)}</span></span></button>`;
 }
 
-function navGroup(id: string, label: string, items: Array<[ViewId, string]>) {
+function navGroup(id: string, label: string, items: Array<[ViewId, string, string]>) {
   const open = openGroups.has(id);
-  return `<section class="nav-group"><button class="nav-group-button" data-group="${id}" type="button"><span>${escapeHtml(label)}</span><span>${open ? "-" : "+"}</span></button>${open ? `<div class="nav-group-items">${items.map(([view, itemLabel]) => navButton(view, itemLabel, true)).join("")}</div>` : ""}</section>`;
+  return `<section class="nav-group"><button class="nav-group-button" data-group="${id}" type="button"><span>${escapeHtml(label)}</span><span>${open ? "-" : "+"}</span></button>${open ? `<div class="nav-group-items">${items.map(([view, itemLabel, iconName]) => navButton(view, itemLabel, iconName, true)).join("")}</div>` : ""}</section>`;
 }
 
 function issuePopover(issues: Issue[]) {
@@ -514,12 +516,12 @@ function textInput(id: string, label: string, value: string, placeholder: string
   return `<label><span>${escapeHtml(label)}</span><input id="${id}" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}" ${readOnly ? "readonly" : ""} /></label>`;
 }
 
-function metric(label: string, value: string) {
-  return `<article class="metric-card"><p>${escapeHtml(label)}</p><h3>${escapeHtml(value)}</h3></article>`;
+function metric(label: string, value: string, iconName = "circle") {
+  return `<article class="metric-card"><div class="metric-label">${icon(iconName)}<p>${escapeHtml(label)}</p></div><h3>${escapeHtml(value)}</h3></article>`;
 }
 
-function snapshotRow(label: string, value: string) {
-  return `<article class="snapshot-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`;
+function snapshotRow(iconName: string, label: string, value: string) {
+  return `<article class="snapshot-row"><span class="snapshot-label">${icon(iconName)}<span>${escapeHtml(label)}</span></span><strong>${escapeHtml(value)}</strong></article>`;
 }
 
 function emptyState(title: string, text: string, view: ViewId, actionLabel: string) {
@@ -636,9 +638,13 @@ function filteredApps() {
 }
 
 function bindingIcon(action: BindingAction) {
-  if (action === "spotify_toggle_tv" || action === "start_spotify_on_tv") return "SP";
-  if (typeof action === "object" && "launch_app" in action) return "AP";
-  return "TV";
+  if (action === "spotify_toggle_tv" || action === "start_spotify_on_tv") return "music-4";
+  if (typeof action === "object" && "launch_app" in action) return "app-window";
+  return "tv";
+}
+
+function icon(name: string) {
+  return `<span class="ui-icon" data-lucide="${escapeHtml(name)}"></span>`;
 }
 
 function describeBindingAction(action: BindingAction) {

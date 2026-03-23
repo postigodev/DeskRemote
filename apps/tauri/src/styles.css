@@ -130,6 +130,30 @@ select {
   cursor: pointer;
 }
 
+.nav-link-copy,
+.metric-label,
+.snapshot-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ui-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  flex: 0 0 auto;
+}
+
+.quick-icon .ui-icon,
+.shortcut-icon .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+
 .nav-group-button {
   display: flex;
   justify-content: space-between;
@@ -352,6 +376,7 @@ select {
   gap: 10px;
   justify-items: center;
   text-align: center;
+  position: relative;
 }
 
 .quick-icon,
@@ -365,6 +390,27 @@ select {
   color: var(--accent);
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: #101212;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  z-index: 5;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
 
 .shortcut-copy,
