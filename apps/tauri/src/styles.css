@@ -769,6 +769,71 @@ select {
   font-weight: 600;
 }
 
+.tool-row {
+  padding: 10px 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tool-row + .tool-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tool-row:hover {
+  background: transparent;
+}
+
+.tool-row-copy,
+.tool-row-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tool-row-text {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.tool-row-text strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.tool-row-text span {
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.tool-row-icon,
+.tool-row-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.tool-row-icon .ui-icon,
+.tool-row-chevron .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.tool-row:hover .tool-row-icon,
+.tool-row:hover .tool-row-chevron,
+.tool-row:hover .tool-row-text strong {
+  color: var(--text);
+}
+
 .binding-actions {
   justify-content: flex-end;
   align-items: center;

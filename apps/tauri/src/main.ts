@@ -184,10 +184,10 @@ function renderHome() {
         <article class="panel utility-panel">
           <div class="panel-header"><div><p class="panel-kicker">Tools</p><h2>Quick tools</h2></div></div>
           <div class="tool-list">
-            <button class="tool-row" data-view="apps" type="button">Open Apps</button>
-            <button class="tool-row" data-view="remote" type="button">Open Remote</button>
-            <button class="tool-row" data-view="health" type="button">Run diagnostics</button>
-            <button class="tool-row" data-view="general" type="button">Open settings</button>
+            ${toolRow("grid-2x2", "Apps", "Browse and launch cached TV apps", "apps")}
+            ${toolRow("gamepad-2", "Remote", "Open manual TV controls", "remote")}
+            ${toolRow("activity", "Diagnostics", "Review system readiness and checks", "health")}
+            ${toolRow("settings-2", "Settings", "Open Spotify and Fire TV configuration", "general")}
           </div>
         </article>
       </aside>
@@ -437,6 +437,10 @@ function metric(label: string, value: string, iconName = "circle") {
 
 function snapshotRow(iconName: string, label: string, value: string) {
   return `<article class="snapshot-row"><div class="snapshot-copy"><span class="snapshot-label">${icon(iconName)}<span>${escapeHtml(label)}</span></span></div><span class="snapshot-value">${escapeHtml(value)}</span></article>`;
+}
+
+function toolRow(iconName: string, label: string, detail: string, view: ViewId) {
+  return `<button class="tool-row" data-view="${view}" type="button"><span class="tool-row-copy"><span class="tool-row-icon">${icon(iconName)}</span><span class="tool-row-text"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(detail)}</span></span></span><span class="tool-row-chevron">${icon("chevron-right")}</span></button>`;
 }
 
 function emptyState(title: string, text: string, view: ViewId, actionLabel: string) {
