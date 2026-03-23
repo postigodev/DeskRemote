@@ -7,7 +7,9 @@ Today the project is no longer just a scaffold:
 - the desktop app can save local configuration
 - the UI can test Fire TV connection and send remote actions
 - Spotify OAuth and Spotify Connect integration are implemented in the core
-- Spotify auth flow is being finalized and is still the most likely area for iteration
+- Spotify auth completes automatically through a localhost callback
+- Fire TV apps can be scanned, cached, and launched from the app
+- bindings, tray actions, and global hotkeys are implemented
 
 ## Current Status
 
@@ -18,15 +20,18 @@ Implemented now:
 - Fire TV wake / screen-state detection
 - Fire TV app launch for Spotify TV
 - Fire TV manual navigation and media key events
+- Fire TV app scanning and local app cache
 - Spotify configuration, token cache, auth URL generation, and TV-target matching by hints
 - Spotify toggle logic for pause / resume / transfer to TV
-
-Not implemented yet:
+- one-shot `Start Spotify On TV` flow
+- persistent bindings for reusable actions
 - system tray behavior
 - global hotkeys
-- app scanning / app cache for Fire TV
-- configurable button mappings
+
+Not implemented yet:
 - production-grade error handling and tests
+- richer Fire TV app metadata
+- editing and management polish beyond the current bindings UI
 
 ## Tech Stack
 
@@ -48,6 +53,8 @@ Not implemented yet:
   Fire TV ADB integration, connection, wake, status, and remote actions
 - `crates/core/src/spotify`
   Spotify OAuth, token cache, device lookup, and playback toggle logic
+- `crates/core/src/bindings.rs`
+  Persistent bindings and reusable action execution
 - `apps/tauri`
   Frontend app and Tauri shell
 - `apps/tauri/src`
@@ -148,28 +155,79 @@ Spotify:
 - resume if Spotify is paused on the TV
 - transfer playback if Spotify is active on another device
 
+App launcher and automation:
+- scan installed Fire TV apps and cache them locally
+- launch cached Fire TV apps from the UI
+- create reusable bindings for:
+  - `start_spotify_on_tv`
+  - `spotify_toggle_tv`
+  - `fire_tv_key`
+  - `launch_app`
+- run bindings manually from the UI
+- trigger bindings from the system tray
+- assign global hotkeys to bindings
+
+## Tray And Hotkeys
+
+The desktop app now stays alive in the tray when you close the window.
+
+Tray menu:
+- `Show Desk Remote`
+- `Start Spotify On TV`
+- `Run First Binding`
+- `Quit`
+
+Global hotkeys are registered from the bindings list while the app is running.
+
+Example bindings:
+- Label: `Watch Spotify on TV`
+  Hotkey: `Alt+L`
+  Action type: `start_spotify_on_tv`
+- Label: `Spotify toggle`
+  Hotkey: `Alt+P`
+  Action type: `spotify_toggle_tv`
+- Label: `TV Home`
+  Hotkey: `Alt+H`
+  Action type: `fire_tv_key`
+  Action value: `home`
+
+Notes:
+- Leave `Hotkey` empty if a binding is only for manual execution or tray use.
+- The UI includes `Record hotkey` to capture a shortcut directly.
+- If a shortcut fails to register, try another one because Windows or another app may already be using it.
+
+## Bindings UI
+
+Bindings now use a guided form:
+- `Action type` is a dropdown
+- `Action value` only appears when required
+- `fire_tv_key` uses a fixed action dropdown
+- `launch_app` uses cached Fire TV apps as options
+- existing bindings can be edited from the list
+
 ## Local Data
 
 The app stores local files under the app data directory:
 - app config JSON
 - Spotify token cache JSON
+- Fire TV app cache JSON
+- bindings JSON
 
 On Windows this is resolved from `%APPDATA%\\Desk Remote`.
 
 ## Known Issues / Notes
 
 - Windows Defender / App Control may block locally built `tauri.exe`. If that happens, the project can still compile, but the desktop app will not launch until the policy is relaxed.
-- The Spotify auth flow is implemented and under active iteration. If automatic localhost callback auth fails, there is still a manual fallback in the UI.
 - `cargo run` from the workspace root is not the intended developer workflow. Use `pnpm tauri dev` from `apps/tauri`.
 - Product naming and Tauri window metadata are still scaffold-level in some config files.
+- Fire TV app scanning currently prioritizes useful launching behavior over rich metadata, so names are still inferred from package names in some cases.
 
 ## Near-Term Roadmap
 
-- stabilize Spotify automatic auth
-- add one-shot flow for `connect + wake + launch Spotify + toggle playback`
-- scan installed Fire TV apps and cache them locally
-- add app launching from the UI
-- add tray integration and global shortcuts
+- improve Fire TV app metadata and launcher discovery
+- keep polishing the bindings editor UX
+- add stronger error reporting and diagnostics
+- add tests for config, bindings, Fire TV parsing, and Spotify decision logic
 
 ## License
 
