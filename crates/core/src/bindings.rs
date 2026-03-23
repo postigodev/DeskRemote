@@ -23,6 +23,8 @@ pub struct Binding {
     pub label: String,
     #[serde(default)]
     pub hotkey: String,
+    #[serde(default)]
+    pub favorite: bool,
     pub action: BindingAction,
 }
 
