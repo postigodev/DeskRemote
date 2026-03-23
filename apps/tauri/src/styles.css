@@ -602,7 +602,8 @@ select {
 .readiness-heading,
 .readiness-copy,
 .readiness-side,
-.readiness-inline-actions {
+.readiness-inline-actions,
+.snapshot-copy {
   display: grid;
   gap: 6px;
 }
@@ -664,7 +665,7 @@ select {
 }
 
 .metric-card h3,
-.snapshot-row strong,
+.snapshot-value,
 .binding-row h3,
 .shortcut-row h3,
 .activity-item h3,
@@ -735,6 +736,37 @@ select {
 
 .mini-tag.ready {
   color: var(--accent);
+}
+
+.snapshot-row {
+  padding: 10px 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  align-items: center;
+}
+
+.snapshot-row + .snapshot-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.snapshot-label {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.snapshot-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.86rem;
+  font-weight: 600;
 }
 
 .binding-actions {

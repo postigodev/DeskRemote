@@ -173,7 +173,7 @@ function renderHome() {
         <article class="panel utility-panel">
           <div class="panel-header"><div><p class="panel-kicker">Snapshot</p><h2>Device snapshot</h2></div></div>
           <div class="snapshot-list">
-          ${snapshotRow("tv", "Fire TV", currentConfig.firetv_ip || "Not configured")}
+            ${snapshotRow("tv", "Fire TV", currentConfig.firetv_ip || "Not configured")}
             ${snapshotRow("plug-zap", "Connection", currentFireTvStatus?.connected ? "Connected" : "Offline")}
             ${snapshotRow("monitor-up", "Screen", screenLabel(currentFireTvStatus?.screen_awake))}
             ${snapshotRow("music-4", "Spotify target", currentSpotifyStatus?.target_name ?? "Not detected")}
@@ -436,7 +436,7 @@ function metric(label: string, value: string, iconName = "circle") {
 }
 
 function snapshotRow(iconName: string, label: string, value: string) {
-  return `<article class="snapshot-row"><span class="snapshot-label">${icon(iconName)}<span>${escapeHtml(label)}</span></span><strong>${escapeHtml(value)}</strong></article>`;
+  return `<article class="snapshot-row"><div class="snapshot-copy"><span class="snapshot-label">${icon(iconName)}<span>${escapeHtml(label)}</span></span></div><span class="snapshot-value">${escapeHtml(value)}</span></article>`;
 }
 
 function emptyState(title: string, text: string, view: ViewId, actionLabel: string) {
