@@ -94,6 +94,7 @@ export type Binding = {
   label: string;
   hotkey: string;
   favorite: boolean;
+  favorite_order: number;
   action: BindingAction;
 };
 

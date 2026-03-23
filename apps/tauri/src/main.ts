@@ -43,6 +43,13 @@ let {
   newBindingActionType,
   newBindingActionValue,
   isRecordingHotkey,
+  draggedFavoriteId,
+  dragOverFavoriteId,
+  quickAccessPointerId,
+  quickAccessPointerStartX,
+  quickAccessPointerStartY,
+  quickAccessDragging,
+  suppressQuickTileClick,
   recentActivity,
 } = appState;
 
@@ -112,7 +119,7 @@ function renderView() {
 
 function renderHome() {
   const issues = deriveIssues();
-  const favorites = currentBindings.filter((binding) => binding.favorite).slice(0, 6);
+  const favorites = favoriteBindings().slice(0, 6);
   const hotkeys = currentBindings.filter((binding) => binding.hotkey.trim());
   return `
     <section class="home-grid">
@@ -121,7 +128,7 @@ function renderHome() {
           <div class="panel-header"><div><p class="panel-kicker">Favorites</p><h2>Quick Access</h2></div><button class="link-button" data-view="quick-access" type="button">Manage</button></div>
           ${
             favorites.length
-              ? `<div class="quick-grid">${favorites.map((binding) => `<button class="quick-tile execute-binding-button" data-binding-id="${escapeHtml(binding.id)}" data-tooltip="${escapeHtml(describeBindingAction(binding.action))}" type="button" ${busy ? "disabled" : ""}><span class="quick-icon">${icon(bindingIcon(binding.action))}</span><span>${escapeHtml(binding.label)}</span></button>`).join("")}</div>`
+              ? `<div class="quick-grid">${favorites.map((binding) => `<button class="quick-tile execute-binding-button ${draggedFavoriteId === binding.id ? "is-dragging" : ""} ${dragOverFavoriteId === binding.id ? "is-drop-target" : ""}" data-binding-id="${escapeHtml(binding.id)}" data-tooltip="${escapeHtml(describeBindingAction(binding.action))}" type="button" ${busy ? "disabled" : ""}><span class="quick-drag-handle" aria-hidden="true">${icon("grip")}</span><span class="quick-icon">${icon(bindingIcon(binding.action))}</span><span>${escapeHtml(binding.label)}</span></button>`).join("")}</div>`
               : emptyState("No quick actions yet", "Mark bindings as favorites to pin them here.", "quick-access", "Open Quick Access")
           }
         </article>
@@ -228,7 +235,7 @@ function renderSpotify() {
 }
 
 function renderQuickAccess() {
-  const favorites = currentBindings.filter((binding) => binding.favorite);
+  const favorites = favoriteBindings();
   return `
     <section class="content-grid two-column">
       <article class="panel">
@@ -243,7 +250,7 @@ function renderQuickAccess() {
         <div class="panel-header"><div><p class="panel-kicker">Preview</p><h2>Current favorites</h2></div></div>
         ${
           favorites.length
-            ? `<div class="quick-grid">${favorites.slice(0, 6).map((binding) => `<button class="quick-tile execute-binding-button" data-binding-id="${escapeHtml(binding.id)}" data-tooltip="${escapeHtml(describeBindingAction(binding.action))}" type="button" ${busy ? "disabled" : ""}><span class="quick-icon">${icon(bindingIcon(binding.action))}</span><span>${escapeHtml(binding.label)}</span></button>`).join("")}</div>`
+            ? `<div class="quick-grid">${favorites.slice(0, 6).map((binding) => `<button class="quick-tile execute-binding-button ${draggedFavoriteId === binding.id ? "is-dragging" : ""} ${dragOverFavoriteId === binding.id ? "is-drop-target" : ""}" data-binding-id="${escapeHtml(binding.id)}" data-tooltip="${escapeHtml(describeBindingAction(binding.action))}" type="button" ${busy ? "disabled" : ""}><span class="quick-drag-handle" aria-hidden="true">${icon("grip")}</span><span class="quick-icon">${icon(bindingIcon(binding.action))}</span><span>${escapeHtml(binding.label)}</span></button>`).join("")}</div>`
             : emptyStateText("No favorites pinned", "Mark a binding as favorite to make it appear here.")
         }
       </article>
@@ -538,6 +545,17 @@ function filteredApps() {
   return currentFireTvApps.filter((app) => !filter || app.display_name.toLowerCase().includes(filter) || app.package_name.toLowerCase().includes(filter));
 }
 
+function favoriteBindings() {
+  return currentBindings
+    .filter((binding) => binding.favorite)
+    .sort((left, right) => {
+      const leftOrder = left.favorite_order || Number.MAX_SAFE_INTEGER;
+      const rightOrder = right.favorite_order || Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      return left.label.localeCompare(right.label);
+    });
+}
+
 function bindingIcon(action: BindingAction) {
   if (action === "spotify_toggle_tv" || action === "start_spotify_on_tv") return "music-4";
   if (typeof action === "object" && "launch_app" in action) return "app-window";
@@ -753,10 +771,26 @@ function bindEvents() {
   );
   document.querySelectorAll<HTMLButtonElement>(".execute-binding-button").forEach((button) =>
     button.addEventListener("click", () => {
+      if (button.classList.contains("quick-tile") && suppressQuickTileClick) {
+        suppressQuickTileClick = false;
+        return;
+      }
       const id = button.dataset.bindingId;
       if (id) void executeBinding(id);
     }),
   );
+  document.querySelectorAll<HTMLButtonElement>(".quick-tile").forEach((tile) => {
+    tile.addEventListener("pointerdown", (event) => {
+      if (busy || event.button !== 0) return;
+      const id = tile.dataset.bindingId;
+      if (!id) return;
+      quickAccessPointerId = id;
+      quickAccessPointerStartX = event.clientX;
+      quickAccessPointerStartY = event.clientY;
+      quickAccessDragging = false;
+      suppressQuickTileClick = false;
+    });
+  });
   document.querySelectorAll<HTMLButtonElement>(".delete-binding-button").forEach((button) =>
     button.addEventListener("click", () => {
       const id = button.dataset.bindingId;
@@ -1205,13 +1239,23 @@ function syncBindingInputs() {
 
 function buildBindingPayload(): Binding {
   const actionType = newBindingActionType.trim();
+  const existingBinding = editingBindingId
+    ? currentBindings.find((binding) => binding.id === editingBindingId)
+    : undefined;
   let action: BindingAction;
   if (actionType === "spotify_toggle_tv") action = "spotify_toggle_tv";
   else if (actionType === "start_spotify_on_tv") action = "start_spotify_on_tv";
   else if (actionType === "launch_app") action = { launch_app: { package_name: newBindingActionValue.trim() } };
   else if (actionType === "fire_tv_key") action = { fire_tv_key: { action: newBindingActionValue.trim() as FireTvAction } };
   else throw new Error(`Unsupported binding action type: ${actionType}`);
-  return { id: editingBindingId, label: newBindingLabel, hotkey: newBindingHotkey, favorite: newBindingFavorite, action };
+  return {
+    id: editingBindingId,
+    label: newBindingLabel,
+    hotkey: newBindingHotkey,
+    favorite: newBindingFavorite,
+    favorite_order: existingBinding?.favorite_order ?? 0,
+    action,
+  };
 }
 
 async function persistCurrentConfig() {
@@ -1223,6 +1267,134 @@ function addActivity(text: string, tone: Activity["tone"]) {
   recentActivity = recentActivity.slice(0, 8);
 }
 
+function clearQuickTileDragClasses() {
+  document.querySelectorAll<HTMLButtonElement>(".quick-tile").forEach((tile) => {
+    tile.classList.remove("is-dragging", "is-drop-target");
+  });
+}
+
+function updateQuickTileDragClasses() {
+  clearQuickTileDragClasses();
+  if (draggedFavoriteId) {
+    document
+      .querySelector<HTMLButtonElement>(`.quick-tile[data-binding-id="${CSS.escape(draggedFavoriteId)}"]`)
+      ?.classList.add("is-dragging");
+  }
+  if (dragOverFavoriteId) {
+    document
+      .querySelector<HTMLButtonElement>(`.quick-tile[data-binding-id="${CSS.escape(dragOverFavoriteId)}"]`)
+      ?.classList.add("is-drop-target");
+  }
+}
+
+function resetQuickAccessPointerState() {
+  quickAccessPointerId = "";
+  quickAccessPointerStartX = 0;
+  quickAccessPointerStartY = 0;
+  quickAccessDragging = false;
+  draggedFavoriteId = "";
+  dragOverFavoriteId = "";
+  clearQuickTileDragClasses();
+}
+
+function handleQuickAccessPointerMove(event: PointerEvent) {
+  if (!quickAccessPointerId || busy) return;
+
+  if (!quickAccessDragging) {
+    const movedX = Math.abs(event.clientX - quickAccessPointerStartX);
+    const movedY = Math.abs(event.clientY - quickAccessPointerStartY);
+    if (movedX < 6 && movedY < 6) return;
+
+    quickAccessDragging = true;
+    draggedFavoriteId = quickAccessPointerId;
+    dragOverFavoriteId = "";
+    suppressQuickTileClick = true;
+  }
+
+  const hoveredTile = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLButtonElement>(".quick-tile");
+  const hoveredId = hoveredTile?.dataset.bindingId ?? "";
+  dragOverFavoriteId = hoveredId && hoveredId !== draggedFavoriteId ? hoveredId : "";
+  updateQuickTileDragClasses();
+}
+
+function handleQuickAccessPointerUp(event: PointerEvent) {
+  if (!quickAccessPointerId) return;
+
+  const sourceId = draggedFavoriteId;
+  const hoveredTile = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLButtonElement>(".quick-tile");
+  const targetId = hoveredTile?.dataset.bindingId ?? "";
+  const shouldReorder = quickAccessDragging && sourceId && targetId && sourceId !== targetId;
+
+  if (!shouldReorder) {
+    resetQuickAccessPointerState();
+    return;
+  }
+
+  void reorderFavoriteBindings(sourceId, targetId);
+}
+
+async function reorderFavoriteBindings(sourceId: string, targetId: string) {
+  if (!sourceId || !targetId || sourceId === targetId || busy) {
+    resetQuickAccessPointerState();
+    render();
+    return;
+  }
+
+  const orderedFavorites = favoriteBindings();
+  const sourceIndex = orderedFavorites.findIndex((binding) => binding.id === sourceId);
+  const targetIndex = orderedFavorites.findIndex((binding) => binding.id === targetId);
+  if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+    resetQuickAccessPointerState();
+    render();
+    return;
+  }
+
+  const previousBindings = currentBindings.map((binding) => ({ ...binding }));
+  const reorderedFavorites = [...orderedFavorites];
+  const [moved] = reorderedFavorites.splice(sourceIndex, 1);
+  reorderedFavorites.splice(targetIndex, 0, moved);
+
+  const reorderedById = new Map(
+    reorderedFavorites.map((binding, index) => [
+      binding.id,
+      { ...binding, favorite_order: index + 1 },
+    ]),
+  );
+
+  currentBindings = currentBindings.map((binding) =>
+    binding.favorite && reorderedById.has(binding.id)
+      ? { ...binding, favorite_order: reorderedById.get(binding.id)!.favorite_order }
+      : binding,
+  );
+  resetQuickAccessPointerState();
+  busy = true;
+  flash("Saving Quick Access order...");
+  render();
+
+  try {
+    let latestStore = { bindings: currentBindings };
+    for (const binding of reorderedFavorites) {
+      latestStore = await api.bindingsSave({
+        ...binding,
+        favorite_order: reorderedById.get(binding.id)!.favorite_order,
+      });
+    }
+    currentBindings = latestStore.bindings;
+    busy = false;
+    flash("Quick Access order updated.");
+    addActivity("Quick Access order updated.", "success");
+    render();
+  } catch (error) {
+    currentBindings = previousBindings;
+    busy = false;
+    flash(asMessage(error), true);
+    addActivity(asMessage(error), "error");
+    render();
+  }
+}
+
 document.addEventListener("keydown", handleHotkeyRecording, true);
+document.addEventListener("pointermove", handleQuickAccessPointerMove, true);
+document.addEventListener("pointerup", handleQuickAccessPointerUp, true);
 
 void loadAll();

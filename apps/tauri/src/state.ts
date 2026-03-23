@@ -44,5 +44,12 @@ export const appState = {
   newBindingActionType: "start_spotify_on_tv",
   newBindingActionValue: "",
   isRecordingHotkey: false,
+  draggedFavoriteId: "",
+  dragOverFavoriteId: "",
+  quickAccessPointerId: "",
+  quickAccessPointerStartX: 0,
+  quickAccessPointerStartY: 0,
+  quickAccessDragging: false,
+  suppressQuickTileClick: false,
   recentActivity: [] as Activity[],
 };
