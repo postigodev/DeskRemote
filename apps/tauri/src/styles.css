@@ -378,6 +378,14 @@ select {
   color: var(--warn);
 }
 
+.mini-tag.warning {
+  color: var(--warn);
+}
+
+.mini-tag.error {
+  color: #ff8f8f;
+}
+
 .button-primary,
 .button-secondary,
 .link-button,
@@ -591,13 +599,55 @@ select {
   align-items: center;
 }
 
+.readiness-heading,
+.readiness-copy,
+.readiness-side,
+.readiness-inline-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.readiness-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.readiness-side {
+  justify-items: end;
+  align-content: start;
+  gap: 8px;
+}
+
+.readiness-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03);
+}
+
+.readiness-dot.ready {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(154, 210, 165, 0.1);
+}
+
+.readiness-dot.warning {
+  background: var(--warn);
+  box-shadow: 0 0 0 4px rgba(241, 202, 101, 0.08);
+}
+
+.readiness-dot.error {
+  background: #ff8f8f;
+  box-shadow: 0 0 0 4px rgba(255, 143, 143, 0.08);
+}
+
 .metric-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .metric-card,
 .snapshot-row,
-.readiness-row,
 .binding-row,
 .app-launch-row,
 .shortcut-row,
@@ -625,7 +675,6 @@ select {
 }
 
 .snapshot-row,
-.readiness-row,
 .binding-row,
 .app-launch-row,
 .shortcut-row,
@@ -633,6 +682,59 @@ select {
 .issue-item,
 .tool-row {
   padding: 14px;
+}
+
+.readiness-row {
+  align-items: start;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 12px 0;
+  box-shadow: none;
+}
+
+.readiness-row + .readiness-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.readiness-row.ready {
+  border-color: transparent;
+}
+
+.readiness-row.warning {
+  border-color: rgba(241, 202, 101, 0.08);
+}
+
+.readiness-row.error {
+  border-color: rgba(255, 143, 143, 0.1);
+}
+
+.readiness-copy {
+  min-width: 0;
+}
+
+.readiness-copy p {
+  margin: 0;
+}
+
+.readiness-inline-actions {
+  margin-top: 2px;
+  justify-items: start;
+}
+
+.readiness-action-button {
+  padding: 0;
+  font-size: 0.86rem;
+  color: var(--text);
+}
+
+.readiness-action-button:hover {
+  background: transparent;
+  color: var(--accent);
+}
+
+.mini-tag.ready {
+  color: var(--accent);
 }
 
 .binding-actions {

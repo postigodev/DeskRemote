@@ -168,7 +168,7 @@ function renderHome() {
         </button>
         <article class="panel utility-panel">
           <div class="panel-header"><div><p class="panel-kicker">Readiness</p><h2>System status</h2></div></div>
-          <div class="readiness-list">${readinessRows().map((row) => `<article class="readiness-row ${row.tone}"><div><h3>${escapeHtml(row.label)}</h3><p>${escapeHtml(row.detail)}</p></div>${row.view ? `<button class="link-button" data-view="${row.view}" type="button">${escapeHtml(row.actionLabel)}</button>` : ""}</article>`).join("")}</div>
+          <div class="readiness-list">${readinessRows().map((row) => `<article class="readiness-row ${row.tone}"><div class="readiness-copy"><div class="readiness-heading"><span class="readiness-dot ${row.tone}"></span><h3>${escapeHtml(row.label)}</h3></div><p>${escapeHtml(row.detail)}</p>${row.action ? `<div class="readiness-inline-actions">${renderReadinessAction(row.action)}</div>` : ""}</div><div class="readiness-side"><span class="mini-tag ${row.tone}">${escapeHtml(row.status)}</span></div></article>`).join("")}</div>
         </article>
         <article class="panel utility-panel">
           <div class="panel-header"><div><p class="panel-kicker">Snapshot</p><h2>Device snapshot</h2></div></div>
@@ -448,34 +448,50 @@ function emptyStateText(title: string, text: string) {
 }
 
 function readinessRows() {
+  const fireTvConfigured = Boolean(currentConfig.firetv_ip.trim());
+  const fireTvConnected = Boolean(currentFireTvStatus?.connected);
+  const tvAwake = currentFireTvStatus?.screen_awake === true;
+  const spotifyAuthed = Boolean(currentSpotifyStatus?.authenticated);
+  const targetFound = Boolean(currentSpotifyStatus?.target_found);
+
   return [
     {
       label: "Fire TV reachable",
-      detail: currentFireTvStatus?.connected ? "Device responded to ADB" : "Reconnect the configured device",
-      view: currentFireTvStatus?.connected ? null : "firetv-device",
-      actionLabel: "Open device",
-      tone: currentFireTvStatus?.connected ? "ready" : "warning",
+      detail: fireTvConnected
+        ? "Connected via ADB"
+        : fireTvConfigured
+          ? "Device is not responding on the configured address"
+          : "No Fire TV IP configured yet",
+      status: fireTvConnected ? "Ready" : fireTvConfigured ? "Offline" : "Missing",
+      action: fireTvConnected
+        ? null
+        : fireTvConfigured
+          ? { kind: "firetv-retry" as const, label: "Retry" }
+          : { kind: "view" as const, view: "firetv-device" as ViewId, label: "Edit IP" },
+      tone: fireTvConnected ? "ready" : "error",
     },
     {
       label: "TV awake",
-      detail: currentFireTvStatus?.screen_awake === true ? "Screen looks responsive" : "Wake the screen before playback",
-      view: currentFireTvStatus?.screen_awake === true ? null : "firetv-device",
-      actionLabel: "Wake TV",
-      tone: currentFireTvStatus?.screen_awake === true ? "ready" : "warning",
+      detail: tvAwake ? "Device is responsive" : "Wake the device before starting playback",
+      status: tvAwake ? "Ready" : fireTvConnected ? "Waking" : "Checking",
+      action: tvAwake ? null : { kind: "wake-tv" as const, label: "Wake TV" },
+      tone: tvAwake ? "ready" : "warning",
     },
     {
       label: "Spotify authenticated",
-      detail: currentSpotifyStatus?.authenticated ? "Token cache is valid" : "Authenticate Spotify to continue",
-      view: currentSpotifyStatus?.authenticated ? null : "spotify",
-      actionLabel: "Open Spotify",
-      tone: currentSpotifyStatus?.authenticated ? "ready" : "error",
+      detail: spotifyAuthed ? "Authentication active" : "Spotify needs authorization before transfer",
+      status: spotifyAuthed ? "Ready" : "Needs auth",
+      action: spotifyAuthed ? null : { kind: "view" as const, view: "spotify" as ViewId, label: "Re-authenticate" },
+      tone: spotifyAuthed ? "ready" : "error",
     },
     {
       label: "Target device detected",
-      detail: currentSpotifyStatus?.target_found ? currentSpotifyStatus.target_name ?? "TV target available" : "Open Spotify on the TV or review hints",
-      view: currentSpotifyStatus?.target_found ? null : "spotify",
-      actionLabel: "Review target",
-      tone: currentSpotifyStatus?.target_found ? "ready" : "warning",
+      detail: targetFound
+        ? currentSpotifyStatus?.target_name ?? "TV target available"
+        : "Open Spotify on the TV or review the target hints",
+      status: targetFound ? "Ready" : "Not found",
+      action: targetFound ? null : { kind: "view" as const, view: "spotify" as ViewId, label: "Edit target hints" },
+      tone: targetFound ? "ready" : "warning",
     },
   ] as const;
 }
@@ -491,6 +507,16 @@ function deriveIssues() {
 
 function screenLabel(value: boolean | null | undefined) {
   return value === true ? "Awake" : value === false ? "Asleep" : "Unavailable";
+}
+
+function renderReadinessAction(
+  action: { kind: "view"; view: ViewId; label: string } | { kind: "wake-tv" | "firetv-retry"; label: string },
+) {
+  if (action.kind === "view") {
+    return `<button class="link-button readiness-action-button" data-view="${action.view}" type="button">${escapeHtml(action.label)}</button>`;
+  }
+
+  return `<button class="link-button readiness-action-button" data-readiness-action="${action.kind}" type="button">${escapeHtml(action.label)}</button>`;
 }
 
 function sectionLabel(view: ViewId) {
@@ -728,6 +754,16 @@ function bindEvents() {
   document.querySelector("#health-button")?.addEventListener("click", () => void refreshHealth());
   document.querySelector("#firetv-scan-apps-button")?.addEventListener("click", () => void scanFireTvApps());
   document.querySelector("#firetv-load-apps-button")?.addEventListener("click", () => void loadCachedFireTvApps());
+  document.querySelectorAll<HTMLButtonElement>(".readiness-action-button").forEach((button) =>
+    button.addEventListener("click", () => {
+      const readinessAction = button.dataset.readinessAction;
+      if (readinessAction === "wake-tv") {
+        void triggerFireTvAction("ensure_awake");
+      } else if (readinessAction === "firetv-retry") {
+        void refreshFireTvStatus("Fire TV status refreshed.");
+      }
+    }),
+  );
   document.querySelector<HTMLInputElement>("#firetv-app-filter")?.addEventListener("input", (event) => {
     fireTvAppFilter = (event.currentTarget as HTMLInputElement).value;
     render();
