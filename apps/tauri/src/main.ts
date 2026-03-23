@@ -129,6 +129,7 @@ let spotifyAuthUrl = "";
 let spotifyCallbackInput = "";
 let spotifyAuthMode = "Auto callback in localhost";
 let fireTvAppFilter = "";
+let editingBindingId = "";
 let newBindingLabel = "";
 let newBindingHotkey = "";
 let newBindingActionType = "start_spotify_on_tv";
@@ -286,6 +287,7 @@ function render() {
           </p>
 
           <form class="form" id="binding-form">
+            <p class="meta">${editingBindingId ? "Editing existing binding" : "Create a new binding"}</p>
             <label>
               <span>Label</span>
               <input id="binding-label" placeholder="Watch Spotify on TV" value="${escapeHtml(newBindingLabel)}" />
@@ -308,14 +310,23 @@ function render() {
             </p>
             <label>
               <span>Action type</span>
-              <input id="binding-action-type" placeholder="start_spotify_on_tv, spotify_toggle_tv, fire_tv_key, launch_app" value="${escapeHtml(newBindingActionType)}" />
+              <select id="binding-action-type">
+                ${renderBindingActionOptions()}
+              </select>
             </label>
-            <label>
-              <span>Action value</span>
-              <input id="binding-action-value" placeholder="package name or fire tv action when needed" value="${escapeHtml(newBindingActionValue)}" />
-            </label>
+            ${
+              bindingActionRequiresValue(newBindingActionType)
+                ? `
+                  <label>
+                    <span>${escapeHtml(bindingActionValueLabel(newBindingActionType))}</span>
+                    <input id="binding-action-value" placeholder="${escapeHtml(bindingActionValuePlaceholder(newBindingActionType))}" value="${escapeHtml(newBindingActionValue)}" />
+                  </label>
+                `
+                : ""
+            }
             <div class="actions">
-              <button class="button-primary" type="submit" ${busy ? "disabled" : ""}>Save binding</button>
+              <button class="button-primary" type="submit" ${busy ? "disabled" : ""}>${editingBindingId ? "Update binding" : "Save binding"}</button>
+              <button class="button-secondary" id="binding-reset-button" type="button" ${busy ? "disabled" : ""}>${editingBindingId ? "Cancel edit" : "Clear form"}</button>
               <button class="button-secondary" id="bindings-reload-button" type="button" ${busy ? "disabled" : ""}>Reload bindings</button>
             </div>
           </form>
@@ -333,6 +344,7 @@ function render() {
                             <p class="status-copy">${escapeHtml(binding.hotkey || "No hotkey")} · ${escapeHtml(describeBindingAction(binding.action))}</p>
                           </div>
                           <div class="actions">
+                            <button class="button-secondary edit-binding-button" data-binding-id="${escapeHtml(binding.id)}" type="button" ${busy ? "disabled" : ""}>Edit</button>
                             <button class="button-secondary execute-binding-button" data-binding-id="${escapeHtml(binding.id)}" type="button" ${busy ? "disabled" : ""}>Run</button>
                             <button class="button-secondary delete-binding-button" data-binding-id="${escapeHtml(binding.id)}" type="button" ${busy ? "disabled" : ""}>Delete</button>
                           </div>
@@ -630,9 +642,23 @@ function render() {
       void loadBindings("Bindings reloaded.");
     });
   document
+    .querySelector<HTMLButtonElement>("#binding-reset-button")
+    ?.addEventListener("click", () => {
+      resetBindingForm();
+    });
+  document
     .querySelector<HTMLButtonElement>("#binding-record-hotkey-button")
     ?.addEventListener("click", () => {
       toggleHotkeyRecording();
+    });
+  document
+    .querySelector<HTMLSelectElement>("#binding-action-type")
+    ?.addEventListener("change", (event) => {
+      newBindingActionType = (event.currentTarget as HTMLSelectElement).value;
+      if (!bindingActionRequiresValue(newBindingActionType)) {
+        newBindingActionValue = "";
+      }
+      render();
     });
   document
     .querySelector<HTMLButtonElement>("#spotify-status-button")
@@ -693,6 +719,14 @@ function render() {
       const bindingId = button.dataset.bindingId;
       if (bindingId) {
         void deleteBinding(bindingId);
+      }
+    });
+  });
+  document.querySelectorAll<HTMLButtonElement>(".edit-binding-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const bindingId = button.dataset.bindingId;
+      if (bindingId) {
+        startEditingBinding(bindingId);
       }
     });
   });
@@ -757,6 +791,44 @@ function renderFireTvApps() {
   `;
 }
 
+function renderBindingActionOptions() {
+  return [
+    ["start_spotify_on_tv", "Start Spotify On TV"],
+    ["spotify_toggle_tv", "Spotify toggle on TV"],
+    ["fire_tv_key", "Fire TV key"],
+    ["launch_app", "Launch Fire TV app"],
+  ]
+    .map(([value, label]) => {
+      const selected = newBindingActionType === value ? "selected" : "";
+      return `<option value="${escapeHtml(value)}" ${selected}>${escapeHtml(label)}</option>`;
+    })
+    .join("");
+}
+
+function bindingActionRequiresValue(actionType: string) {
+  return actionType === "fire_tv_key" || actionType === "launch_app";
+}
+
+function bindingActionValueLabel(actionType: string) {
+  if (actionType === "fire_tv_key") {
+    return "Fire TV action";
+  }
+  if (actionType === "launch_app") {
+    return "Package name";
+  }
+  return "Action value";
+}
+
+function bindingActionValuePlaceholder(actionType: string) {
+  if (actionType === "fire_tv_key") {
+    return "home, back, play_pause...";
+  }
+  if (actionType === "launch_app") {
+    return "com.spotify.tv.android";
+  }
+  return "";
+}
+
 function describeBindingAction(action: BindingAction) {
   if (action === "spotify_toggle_tv") {
     return "spotify_toggle_tv";
@@ -771,6 +843,65 @@ function describeBindingAction(action: BindingAction) {
     return `fire_tv_key(${action.fire_tv_key.action})`;
   }
   return "unknown";
+}
+
+function startEditingBinding(id: string) {
+  const binding = currentBindings.find((item) => item.id === id);
+  if (!binding) {
+    flash("Binding not found.", true);
+    render();
+    return;
+  }
+
+  editingBindingId = binding.id;
+  newBindingLabel = binding.label;
+  newBindingHotkey = binding.hotkey;
+  newBindingActionType = bindingActionTypeFromBinding(binding.action);
+  newBindingActionValue = bindingActionValueFromBinding(binding.action);
+  isRecordingHotkey = false;
+  flash(`Editing binding: ${binding.label}`);
+  render();
+}
+
+function resetBindingForm() {
+  resetBindingFormState();
+  flash("Binding form cleared.");
+  render();
+}
+
+function resetBindingFormState() {
+  editingBindingId = "";
+  newBindingLabel = "";
+  newBindingHotkey = "";
+  newBindingActionType = "start_spotify_on_tv";
+  newBindingActionValue = "";
+  isRecordingHotkey = false;
+}
+
+function bindingActionTypeFromBinding(action: BindingAction) {
+  if (action === "spotify_toggle_tv") {
+    return "spotify_toggle_tv";
+  }
+  if (action === "start_spotify_on_tv") {
+    return "start_spotify_on_tv";
+  }
+  if (typeof action === "object" && "launch_app" in action) {
+    return "launch_app";
+  }
+  if (typeof action === "object" && "fire_tv_key" in action) {
+    return "fire_tv_key";
+  }
+  return "start_spotify_on_tv";
+}
+
+function bindingActionValueFromBinding(action: BindingAction) {
+  if (typeof action === "object" && "launch_app" in action) {
+    return action.launch_app.package_name;
+  }
+  if (typeof action === "object" && "fire_tv_key" in action) {
+    return action.fire_tv_key.action;
+  }
+  return "";
 }
 
 function toggleHotkeyRecording() {
@@ -1066,6 +1197,7 @@ async function saveBinding() {
     });
     currentBindings = store.bindings;
     const hotkeyMessage = await syncGlobalHotkeys();
+    resetBindingFormState();
     busy = false;
     flash(hotkeyMessage ? `Binding saved. ${hotkeyMessage}` : "Binding saved.");
     render();
@@ -1106,6 +1238,9 @@ async function deleteBinding(id: string) {
     const store = await invoke<BindingStore>("bindings_delete", { id });
     currentBindings = store.bindings;
     const hotkeyMessage = await syncGlobalHotkeys();
+    if (editingBindingId === id) {
+      resetBindingFormState();
+    }
     busy = false;
     flash(hotkeyMessage ? `Binding deleted. ${hotkeyMessage}` : "Binding deleted.");
     render();
@@ -1377,7 +1512,7 @@ function syncBindingInputs() {
   newBindingHotkey =
     document.querySelector<HTMLInputElement>("#binding-hotkey")?.value.trim() ?? newBindingHotkey;
   newBindingActionType =
-    document.querySelector<HTMLInputElement>("#binding-action-type")?.value.trim() ??
+    document.querySelector<HTMLSelectElement>("#binding-action-type")?.value.trim() ??
     newBindingActionType;
   newBindingActionValue =
     document.querySelector<HTMLInputElement>("#binding-action-value")?.value.trim() ??
@@ -1401,7 +1536,7 @@ function buildBindingPayload(): Binding {
   }
 
   return {
-    id: "",
+    id: editingBindingId,
     label: newBindingLabel,
     hotkey: newBindingHotkey,
     action,
