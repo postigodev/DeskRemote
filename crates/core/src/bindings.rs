@@ -23,6 +23,10 @@ pub struct Binding {
     pub label: String,
     #[serde(default)]
     pub hotkey: String,
+    #[serde(default)]
+    pub favorite: bool,
+    #[serde(default)]
+    pub favorite_order: u32,
     pub action: BindingAction,
 }
 
@@ -46,6 +50,7 @@ pub fn list_bindings() -> Result<BindingStore> {
 
 pub fn save_binding(mut binding: Binding) -> Result<BindingStore> {
     let mut store = list_bindings()?;
+    let existing_binding = store.bindings.iter().find(|item| item.id == binding.id).cloned();
 
     if binding.id.trim().is_empty() {
         binding.id = generate_binding_id();
@@ -65,13 +70,14 @@ pub fn save_binding(mut binding: Binding) -> Result<BindingStore> {
         bail!("Hotkey already in use: {}", binding.hotkey);
     }
 
+    binding.favorite_order = normalized_favorite_order(&store, &binding, existing_binding.as_ref());
+
     if let Some(existing) = store.bindings.iter_mut().find(|item| item.id == binding.id) {
         *existing = binding;
     } else {
         store.bindings.push(binding);
     }
 
-    store.bindings.sort_by(|left, right| left.label.cmp(&right.label));
     write_store(&store)?;
     Ok(store)
 }
@@ -128,4 +134,33 @@ fn generate_binding_id() -> String {
         .take(10)
         .map(char::from)
         .collect()
+}
+
+fn normalized_favorite_order(
+    store: &BindingStore,
+    binding: &Binding,
+    existing_binding: Option<&Binding>,
+) -> u32 {
+    if !binding.favorite {
+        return existing_binding.map(|item| item.favorite_order).unwrap_or(0);
+    }
+
+    if binding.favorite_order > 0 {
+        return binding.favorite_order;
+    }
+
+    if let Some(existing) = existing_binding {
+        if existing.favorite && existing.favorite_order > 0 {
+            return existing.favorite_order;
+        }
+    }
+
+    store
+        .bindings
+        .iter()
+        .filter(|item| item.favorite)
+        .map(|item| item.favorite_order)
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1)
 }
