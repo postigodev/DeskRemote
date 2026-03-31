@@ -77,6 +77,8 @@ export function renderBindingActionControl(
       "right",
       "select",
       "play_pause",
+      "volume_up",
+      "volume_down",
     ];
     return `<select class="settings-input" id="binding-action-value">${values
       .map(

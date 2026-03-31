@@ -649,9 +649,95 @@ input[readonly] {
   align-items: start;
 }
 
+.apps-page {
+  align-items: start;
+}
+
 .hotkeys-page {
   align-items: start;
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.92fr);
+}
+
+.apps-launcher-panel,
+.apps-summary-panel {
+  align-content: start;
+}
+
+.apps-page {
+  grid-template-columns: minmax(0, 1.42fr) minmax(280px, 0.78fr);
+}
+
+.apps-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.apps-filter-field {
+  margin-bottom: 6px;
+}
+
+.app-launch-list {
+  gap: 10px;
+}
+
+.app-launch-row--compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+}
+
+.app-launch-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-launch-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--accent);
+}
+
+.app-launch-icon .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.app-launch-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.app-launch-copy h3 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.app-launch-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.app-launch-row--compact .button-secondary {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
 }
 
 .quick-access-manage-list {
@@ -1619,14 +1705,106 @@ input[readonly] {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.remote-console-panel {
+  align-content: start;
+}
+
+.remote-console-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.remote-cluster {
+  display: grid;
+  gap: 16px;
+}
+
+.remote-cluster-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .remote-pad {
-  max-width: 360px;
+  max-width: 340px;
+  display: grid;
+  gap: 10px;
 }
 
 .remote-pad-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
+}
+
+.remote-button--pad,
+.remote-button--select {
+  min-height: 56px;
+  padding: 0;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remote-button--pad .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.remote-button--select {
+  min-height: 60px;
+  font-weight: 600;
+}
+
+.remote-nav-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 340px;
+}
+
+.remote-button--utility,
+.remote-button--control {
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.remote-button--utility .ui-icon,
+.remote-button--control .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.remote-control-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.remote-control-group {
+  display: grid;
+  gap: 10px;
+}
+
+.remote-group-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.remote-control-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 kbd {
@@ -1658,6 +1836,10 @@ details[open] {
     grid-template-columns: 1fr;
     gap: 16px;
   }
+
+  .remote-console-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
@@ -1683,7 +1865,9 @@ details[open] {
 
   .quick-grid,
   .metric-grid,
-  .remote-pad-row {
+  .remote-pad-row,
+  .remote-nav-actions,
+  .remote-control-grid {
     grid-template-columns: 1fr;
   }
 

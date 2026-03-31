@@ -82,7 +82,9 @@ export type FireTvAction =
   | "left"
   | "right"
   | "select"
-  | "play_pause";
+  | "play_pause"
+  | "volume_up"
+  | "volume_down";
 
 export type BindingAction =
   | { launch_app: { package_name: string } }

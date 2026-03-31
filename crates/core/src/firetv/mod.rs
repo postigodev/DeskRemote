@@ -21,6 +21,8 @@ pub enum FireTvAction {
     Right,
     Select,
     PlayPause,
+    VolumeUp,
+    VolumeDown,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -340,6 +342,8 @@ fn key_code_for(action: FireTvAction) -> &'static str {
         FireTvAction::Right => "KEYCODE_DPAD_RIGHT",
         FireTvAction::Select => "KEYCODE_DPAD_CENTER",
         FireTvAction::PlayPause => "KEYCODE_MEDIA_PLAY_PAUSE",
+        FireTvAction::VolumeUp => "KEYCODE_VOLUME_UP",
+        FireTvAction::VolumeDown => "KEYCODE_VOLUME_DOWN",
     }
 }
 
