@@ -283,6 +283,8 @@ function bindEvents() {
   document.querySelector("#firetv-check-button")?.addEventListener("click", () => void refreshFireTvStatus());
   document.querySelector("#reload-button")?.addEventListener("click", () => void loadAll("Configuration reloaded from disk."));
   document.querySelector("#health-button")?.addEventListener("click", () => void refreshHealth());
+  document.querySelector("#health-refresh-button")?.addEventListener("click", () => void refreshHealth());
+  document.querySelector("#health-refresh-recovery-button")?.addEventListener("click", () => void refreshHealth());
   document.querySelector("#firetv-scan-apps-button")?.addEventListener("click", () => void scanFireTvApps());
   document.querySelector("#firetv-load-apps-button")?.addEventListener("click", () => void loadCachedFireTvApps());
   document.querySelectorAll<HTMLButtonElement>(".readiness-action-button").forEach((button) =>

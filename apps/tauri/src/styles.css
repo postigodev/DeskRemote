@@ -657,6 +657,12 @@ input[readonly] {
   align-items: start;
 }
 
+.health-side-stack {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
 .hotkeys-page {
   align-items: start;
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.92fr);
@@ -817,6 +823,102 @@ input[readonly] {
 
 .general-stat-card strong {
   font-size: 1.02rem;
+}
+
+.health-readiness-panel,
+.health-technical-panel,
+.health-recovery-panel {
+  align-content: start;
+}
+
+.health-status-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.health-status-banner.is-ready {
+  border-color: rgba(var(--accent-rgb), 0.14);
+  background: rgba(var(--accent-rgb), 0.05);
+}
+
+.health-status-banner.is-warning {
+  border-color: rgba(var(--warn-rgb), 0.16);
+  background: rgba(var(--warn-rgb), 0.05);
+}
+
+.health-status-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.health-status-banner.is-warning .health-status-icon {
+  color: var(--warn);
+}
+
+.health-status-banner strong,
+.health-status-banner p {
+  margin: 0;
+}
+
+.health-status-banner div {
+  display: grid;
+  gap: 4px;
+}
+
+.health-status-banner p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.health-summary-list {
+  display: grid;
+  gap: 0;
+}
+
+.health-summary-row {
+  padding: 10px 0;
+}
+
+.health-summary-row + .health-summary-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.health-summary-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.health-summary-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.health-summary-label .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.health-summary-copy p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .quick-access-manage-list {
@@ -1799,6 +1901,7 @@ input[readonly] {
 .remote-cluster {
   display: grid;
   gap: 14px;
+  align-content: start;
 }
 
 .remote-cluster-header h3 {

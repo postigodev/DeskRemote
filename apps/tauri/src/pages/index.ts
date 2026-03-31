@@ -129,6 +129,7 @@ export function renderView(deps: RenderViewDeps) {
       return renderHealth({
         busy: deps.busy,
         issues: deps.issues,
+        readinessRows: deps.readinessRows,
         currentHealth: deps.currentHealth,
         currentFireTvStatus: deps.currentFireTvStatus,
         currentSpotifyStatus: deps.currentSpotifyStatus,
