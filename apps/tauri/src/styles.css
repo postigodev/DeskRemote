@@ -432,6 +432,13 @@ select {
   margin-bottom: 14px;
 }
 
+.panel-subcopy {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .settings-field {
   display: grid;
   gap: 8px;
@@ -626,6 +633,138 @@ input[readonly] {
   grid-template-columns: repeat(auto-fit, minmax(120px, 140px));
   gap: 12px;
   justify-content: start;
+}
+
+.quick-access-page {
+  align-items: start;
+}
+
+.quick-access-manage-list {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-access-manage-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.quick-access-manage-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.quick-access-manage-main h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.quick-access-manage-main p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.quick-access-manage-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.quick-access-manage-icon .ui-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.quick-access-toggle {
+  flex: 0 0 auto;
+  color: var(--muted);
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.quick-access-toggle input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  flex: 0 0 auto;
+  box-shadow: none;
+}
+
+.quick-access-toggle input[type="checkbox"]::after {
+  content: "";
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  transform: rotate(-45deg) translate(0, -1px);
+}
+
+.quick-access-toggle input[type="checkbox"]:checked {
+  border-color: rgba(var(--accent-rgb), 0.34);
+  background: rgba(var(--accent-rgb), 0.14);
+}
+
+.quick-access-toggle input[type="checkbox"]:checked::after {
+  border-left-color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.quick-access-toggle span {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.quick-access-toggle:has(input[type="checkbox"]:checked) {
+  color: var(--text);
+  border-color: rgba(var(--accent-rgb), 0.18);
+  background: rgba(var(--accent-rgb), 0.06);
+}
+
+.quick-access-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.quick-access-preview-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.quick-access-preview-grid {
+  align-content: start;
 }
 
 .quick-tile {
@@ -1304,6 +1443,7 @@ details[open] {
   .topbar,
   .hero-top,
   .panel-header,
+  .quick-access-manage-row,
   .spotify-status-row,
   .shortcut-row,
   .binding-row,
