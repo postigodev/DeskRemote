@@ -146,14 +146,14 @@ function renderHome() {
               : emptyState("No hotkeys configured", "Add a hotkey to any binding and it will appear here.", "hotkeys", "Open Hotkeys")
           }
         </article>
-        <article class="panel">
-          <div class="panel-header"><div><p class="panel-kicker">Recent</p><h2>Recent activity</h2></div></div>
-          ${
-            recentActivity.length
-              ? `<div class="activity-list">${recentActivity.map((item) => `<article class="activity-item ${item.tone}"><div><h3>${escapeHtml(item.text)}</h3><p>${escapeHtml(timeAgo(item.at))}</p></div></article>`).join("")}</div>`
-              : emptyStateText("No recent activity", "Recent actions and issues will show up here.")
-          }
-        </article>
+          <article class="panel">
+            <div class="panel-header"><div><p class="panel-kicker">Recent</p><h2>Recent activity</h2></div></div>
+            ${
+              recentActivity.length
+                ? `<div class="activity-list">${recentActivity.slice(0, 5).map((item) => `<article class="activity-item ${item.tone}"><div><h3>${escapeHtml(item.text)}</h3><p>${escapeHtml(timeAgo(item.at))}</p></div></article>`).join("")}</div>`
+                : emptyStateText("No recent activity", "Recent actions and issues will show up here.")
+            }
+          </article>
       </section>
       <aside class="home-side">
         <button class="panel hero-panel action-tile" id="start-spotify-on-tv-button" type="button" ${busy ? "disabled" : ""}>
@@ -1456,7 +1456,7 @@ async function persistCurrentConfig() {
 
 function addActivity(text: string, tone: Activity["tone"]) {
   recentActivity.unshift({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text, tone, at: Date.now() });
-  recentActivity = recentActivity.slice(0, 8);
+  recentActivity = recentActivity.slice(0, 5);
 }
 
 function clearQuickTileDragClasses() {
