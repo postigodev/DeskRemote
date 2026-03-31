@@ -3,18 +3,14 @@ import { icon } from "../icons";
 export function renderRemote(busy: boolean) {
   return `
     <section class="panel remote-console-panel">
-      <div class="panel-header">
-        <div>
-          <p class="panel-kicker">Manual control</p>
-          <h2>Remote</h2>
-          <p class="panel-subcopy">Navigation on the left. Playback, volume, and power on the right.</p>
-        </div>
+      <div class="remote-console-intro">
+        <p class="panel-kicker">Control console</p>
+        <h2>Remote controls</h2>
+        <p class="panel-subcopy">Navigation on the left. Playback, volume, and power on the right.</p>
       </div>
       <div class="remote-console-grid">
         <section class="remote-cluster remote-cluster--navigation">
-          <div class="remote-cluster-header">
-            <h3>Navigation</h3>
-          </div>
+          <p class="remote-group-label">Navigation</p>
           <div class="remote-pad">
             <button class="button-secondary remote-button remote-button--pad" data-firetv-action="up" type="button" ${busy ? "disabled" : ""}>${icon("chevron-up")}</button>
             <div class="remote-pad-row">
@@ -31,12 +27,9 @@ export function renderRemote(busy: boolean) {
         </section>
 
         <section class="remote-cluster remote-cluster--controls">
-          <div class="remote-cluster-header">
-            <h3>Playback and TV</h3>
-          </div>
+          <p class="remote-group-label">Playback and TV</p>
           <div class="remote-control-stack">
             <div class="remote-control-group">
-              <p class="remote-group-label">Playback</p>
               <div class="remote-control-stack-list">
                 <button class="button-secondary remote-button remote-button--control" data-firetv-action="play_pause" type="button" ${busy ? "disabled" : ""}>${icon("play")}<span>Play/Pause</span></button>
                 <button class="button-secondary remote-button remote-button--control" data-firetv-action="launch_spotify" type="button" ${busy ? "disabled" : ""}>${icon("music-4")}<span>Spotify</span></button>
