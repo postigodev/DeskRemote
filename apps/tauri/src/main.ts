@@ -262,12 +262,14 @@ function bindEvents() {
     event.preventDefault();
     void saveSettingsFromInputs("Fire TV settings saved.");
   });
-  document.querySelector("#spotify-status-button")?.addEventListener("click", () => void refreshSpotifyStatus());
+  document.querySelector("#spotify-refresh-button")?.addEventListener("click", () => void refreshSpotifyStatus());
   document.querySelector("#spotify-start-auth-button")?.addEventListener("click", () => void startSpotifyAuth());
   document.querySelector("#spotify-debug-button")?.addEventListener("click", () => void inspectSpotifyAuth());
   document.querySelector("#spotify-finish-auth-button")?.addEventListener("click", () => void finishSpotifyAuth());
-  document.querySelector("#spotify-toggle-button")?.addEventListener("click", () => void toggleSpotifyOnTv());
-  document.querySelector("#spotify-transfer-button")?.addEventListener("click", () => void startSpotifyOnTv());
+  document.querySelector("#spotify-playback-button")?.addEventListener("click", () => void toggleSpotifyPlayback());
+  document.querySelector("#spotify-send-to-tv-button")?.addEventListener("click", () => void transferSpotifyToTv());
+  document.querySelector("#spotify-previous-button")?.addEventListener("click", () => void previousSpotifyTrack());
+  document.querySelector("#spotify-next-button")?.addEventListener("click", () => void nextSpotifyTrack());
   document.querySelectorAll<HTMLButtonElement>(".spotify-inline-action").forEach((button) =>
     button.addEventListener("click", () => {
       const action = button.dataset.spotifyInline;
@@ -569,6 +571,22 @@ async function toggleSpotifyOnTv() {
   }
 }
 
+async function toggleSpotifyPlayback() {
+  await runSpotifyPlayerAction("Toggling Spotify playback...", () => api.spotifyTogglePlayback());
+}
+
+async function transferSpotifyToTv() {
+  await runSpotifyPlayerAction("Sending Spotify playback to TV...", () => api.spotifyTransferTv());
+}
+
+async function previousSpotifyTrack() {
+  await runSpotifyPlayerAction("Going back to the previous track...", () => api.spotifyPreviousTrack());
+}
+
+async function nextSpotifyTrack() {
+  await runSpotifyPlayerAction("Skipping to the next track...", () => api.spotifyNextTrack());
+}
+
 async function startSpotifyAuth() {
   syncConfigFromInputs();
   busy = true;
@@ -650,6 +668,28 @@ async function refreshSpotifyStatus(message = "Spotify status refreshed.") {
   } catch (error) {
     busy = false;
     flash(asMessage(error), true);
+    render();
+  }
+}
+
+async function runSpotifyPlayerAction(loadingMessage: string, action: () => Promise<{ message: string }>) {
+  syncConfigFromInputs();
+  busy = true;
+  flash(loadingMessage);
+  render();
+  try {
+    await persistCurrentConfig();
+    const result = await action();
+    currentSpotifyStatus = await api.spotifyStatus();
+    currentHealth = await api.healthCheck();
+    busy = false;
+    flash(result.message);
+    addActivity(result.message, "success");
+    render();
+  } catch (error) {
+    busy = false;
+    flash(asMessage(error), true);
+    addActivity(asMessage(error), "error");
     render();
   }
 }

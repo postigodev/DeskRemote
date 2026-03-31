@@ -56,9 +56,20 @@ export type SpotifyStatus = {
   authenticated: boolean;
   target_found: boolean;
   target_name: string | null;
+  now_playing: SpotifyNowPlaying | null;
   summary: string;
   auth_url: string | null;
   token_cache_path: string;
+};
+
+export type SpotifyNowPlaying = {
+  is_playing: boolean;
+  track_name: string | null;
+  artist_name: string | null;
+  album_name: string | null;
+  album_cover_url: string | null;
+  progress_ms: number | null;
+  duration_ms: number | null;
 };
 
 export type SpotifyAuthDebug = {

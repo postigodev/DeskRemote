@@ -38,17 +38,97 @@ export function renderSpotify({
   const playbackTone = playbackReady ? "ready" : currentSpotifyStatus?.authenticated ? "neutral" : "error";
   const targetStatus = currentSpotifyStatus?.target_found ? targetState : "Missing";
   const playbackStatus = playbackReady ? "Ready" : currentSpotifyStatus?.authenticated ? "Connected" : "Missing";
+  const nowPlaying = currentSpotifyStatus?.now_playing ?? null;
+  const hasNowPlaying = Boolean(nowPlaying?.track_name || nowPlaying?.artist_name || nowPlaying?.album_cover_url);
+  const progressRatio =
+    nowPlaying?.progress_ms != null && nowPlaying?.duration_ms
+      ? Math.max(0, Math.min(1, nowPlaying.progress_ms / nowPlaying.duration_ms))
+      : 0;
+  const progressStyle = `style="--spotify-progress:${progressRatio}"`;
+  const playPauseLabel = nowPlaying?.is_playing ? "Pause" : "Play";
+  const playPauseIcon = nowPlaying?.is_playing ? "pause" : "play";
 
   return `
     <section class="spotify-page">
       <article class="panel spotify-session-panel spotify-session-panel--primary">
         <div class="spotify-session-shell">
           <div class="spotify-session-controls">
-            <div class="spotify-action-bar">
-              <button class="button-primary" id="spotify-toggle-button" type="button" ${busy ? "disabled" : ""}>Toggle playback</button>
-              <button class="button-secondary" id="spotify-transfer-button" type="button" ${busy ? "disabled" : ""}>Transfer to TV</button>
-              <button class="button-secondary" id="spotify-status-button" type="button" ${busy ? "disabled" : ""}>Refresh</button>
-              ${currentSpotifyStatus?.authenticated ? "" : `<button class="button-secondary" id="spotify-start-auth-button" type="button" ${busy ? "disabled" : ""}>Authenticate</button>`}
+            <div class="spotify-now-playing-card ${hasNowPlaying ? "is-active" : "is-idle"}">
+              ${
+                currentSpotifyStatus?.authenticated
+                  ? `
+                    <div class="spotify-now-playing-cover">
+                      ${
+                        nowPlaying?.album_cover_url
+                          ? `<img src="${escapeHtml(nowPlaying.album_cover_url)}" alt="${escapeHtml((nowPlaying.track_name ?? "Spotify playback") + " cover art")}" />`
+                          : `<div class="spotify-cover-fallback">${icon("disc-3")}</div>`
+                      }
+                    </div>
+                    <div class="spotify-now-playing-copy">
+                      <div class="spotify-now-playing-head">
+                        <p class="panel-kicker">Now playing</p>
+                        <h3>${escapeHtml(nowPlaying?.track_name ?? "No active Spotify playback")}</h3>
+                        <p class="spotify-now-playing-artist">${escapeHtml(
+                          nowPlaying?.artist_name ?? "Start playback on your TV to see track details.",
+                        )}</p>
+                      </div>
+                      <div class="spotify-progress-block">
+                        <div class="spotify-progress-bar" ${progressStyle}><span></span></div>
+                        <div class="spotify-progress-times">
+                          <span>${escapeHtml(formatDuration(nowPlaying?.progress_ms ?? null))}</span>
+                          <span>${escapeHtml(formatDuration(nowPlaying?.duration_ms ?? null))}</span>
+                        </div>
+                      </div>
+                    </div>
+                  `
+                  : `
+                    <div class="spotify-now-playing-cover">
+                      <div class="spotify-cover-fallback">${icon("disc-3")}</div>
+                    </div>
+                    <div class="spotify-now-playing-copy">
+                      <div class="spotify-now-playing-head">
+                        <p class="panel-kicker">Now playing</p>
+                        <h3>Spotify authentication required</h3>
+                        <p class="spotify-now-playing-artist">Authenticate Spotify to load playback details and TV transport controls.</p>
+                      </div>
+                    </div>
+                  `
+              }
+            </div>
+
+            <div class="spotify-player-controls">
+              <div class="spotify-transport-bar">
+                ${
+                  currentSpotifyStatus?.authenticated
+                    ? `
+                      <button class="spotify-transport-button" id="spotify-previous-button" type="button" ${busy ? "disabled" : ""} aria-label="Previous track">
+                        ${icon("skip-back")}
+                      </button>
+                      <button class="spotify-transport-button spotify-transport-button--primary" id="spotify-playback-button" type="button" ${busy ? "disabled" : ""} aria-label="${escapeHtml(playPauseLabel)}">
+                        ${icon(playPauseIcon)}
+                        <span>${escapeHtml(playPauseLabel)}</span>
+                      </button>
+                      <button class="spotify-transport-button" id="spotify-next-button" type="button" ${busy ? "disabled" : ""} aria-label="Next track">
+                        ${icon("skip-forward")}
+                      </button>
+                    `
+                    : `<button class="button-secondary" id="spotify-start-auth-button" type="button" ${busy ? "disabled" : ""}>Authenticate</button>`
+                }
+              </div>
+              <div class="spotify-player-utilities">
+                ${
+                  currentSpotifyStatus?.authenticated
+                    ? `
+                      <button class="spotify-icon-button" id="spotify-send-to-tv-button" type="button" data-tooltip="Send playback to TV" ${busy ? "disabled" : ""} aria-label="Send playback to TV">
+                        ${icon("tv")}
+                      </button>
+                      <button class="spotify-icon-button" id="spotify-refresh-button" type="button" data-tooltip="Refresh playback status" ${busy ? "disabled" : ""} aria-label="Refresh playback status">
+                        ${icon("refresh-cw")}
+                      </button>
+                    `
+                    : ""
+                }
+              </div>
             </div>
           </div>
           <div class="spotify-session-state">
@@ -128,4 +208,12 @@ export function renderSpotify({
       </article>
     </section>
   `;
+}
+
+function formatDuration(value: number | null) {
+  if (value == null || Number.isNaN(value)) return "--:--";
+  const totalSeconds = Math.max(0, Math.floor(value / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }

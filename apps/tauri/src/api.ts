@@ -38,5 +38,9 @@ export const api = {
     invoke<SpotifyStatus>("spotify_finish_auth_via_local_callback"),
   spotifyDebugAuthFlow: () => invoke<SpotifyAuthDebug>("spotify_debug_auth_flow"),
   spotifyToggleTv: () => invoke<ActionResult>("spotify_toggle_tv"),
+  spotifyTogglePlayback: () => invoke<ActionResult>("spotify_toggle_playback"),
+  spotifyTransferTv: () => invoke<ActionResult>("spotify_transfer_tv"),
+  spotifyNextTrack: () => invoke<ActionResult>("spotify_next_track"),
+  spotifyPreviousTrack: () => invoke<ActionResult>("spotify_previous_track"),
   startSpotifyOnTv: () => invoke<ActionResult>("start_spotify_on_tv"),
 };

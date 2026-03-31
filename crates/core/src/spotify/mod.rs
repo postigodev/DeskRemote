@@ -12,11 +12,23 @@ use std::{fs, path::PathBuf};
 use tokio::time::{sleep, Duration};
 
 #[derive(Debug, Clone, Serialize)]
+pub struct SpotifyNowPlaying {
+    pub is_playing: bool,
+    pub track_name: Option<String>,
+    pub artist_name: Option<String>,
+    pub album_name: Option<String>,
+    pub album_cover_url: Option<String>,
+    pub progress_ms: Option<u64>,
+    pub duration_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SpotifyStatus {
     pub configured: bool,
     pub authenticated: bool,
     pub target_found: bool,
     pub target_name: Option<String>,
+    pub now_playing: Option<SpotifyNowPlaying>,
     pub summary: String,
     pub auth_url: Option<String>,
     pub token_cache_path: String,
@@ -46,6 +58,7 @@ pub async fn get_status(config: &AppConfig) -> Result<SpotifyStatus> {
             authenticated: false,
             target_found: false,
             target_name: None,
+            now_playing: None,
             summary: "Spotify client ID, client secret, and redirect URL are required".into(),
             auth_url: None,
             token_cache_path,
@@ -64,6 +77,7 @@ pub async fn get_status(config: &AppConfig) -> Result<SpotifyStatus> {
             authenticated: false,
             target_found: false,
             target_name: None,
+            now_playing: None,
             summary: "Spotify is configured but not authenticated yet".into(),
             auth_url: Some(auth_url),
             token_cache_path,
@@ -71,6 +85,9 @@ pub async fn get_status(config: &AppConfig) -> Result<SpotifyStatus> {
     }
 
     let target = find_target_device(&spotify, &config.spotify_target_hint_list()).await?;
+    let now_playing = fetch_now_playing(&spotify)
+        .await
+        .context("failed to fetch Spotify now playing state")?;
     let (target_found, target_name, summary) = if let Some(device) = target {
         let name = device.name;
         (
@@ -91,6 +108,7 @@ pub async fn get_status(config: &AppConfig) -> Result<SpotifyStatus> {
         authenticated: true,
         target_found,
         target_name,
+        now_playing,
         summary,
         auth_url: Some(auth_url),
         token_cache_path,
@@ -239,6 +257,102 @@ pub async fn toggle_on_tv(config: &AppConfig) -> Result<String> {
     Ok(format!("Transferred Spotify playback to {target_name}"))
 }
 
+pub async fn transfer_to_tv(config: &AppConfig) -> Result<String> {
+    if !spotify_configured(config) {
+        bail!("Spotify client ID, client secret, and redirect URL are required");
+    }
+
+    let spotify = build_spotify(config)?;
+    ensure_token(&spotify).await?;
+
+    let target = find_target_device(&spotify, &config.spotify_target_hint_list())
+        .await?
+        .ok_or_else(|| anyhow!("TV device not found in Spotify Connect devices"))?;
+
+    let target_id = target
+        .id
+        .clone()
+        .ok_or_else(|| anyhow!("Target Spotify device found but has no device ID"))?
+        .to_string();
+    let target_name = target.name.clone();
+
+    spotify
+        .transfer_playback(&target_id, Some(false))
+        .await
+        .context("failed to transfer Spotify playback to TV")?;
+    sleep(Duration::from_millis(300)).await;
+    let _ = spotify.resume_playback(Some(target_id.as_str()), None).await;
+
+    Ok(format!("Transferred Spotify playback to {target_name}"))
+}
+
+pub async fn toggle_playback(config: &AppConfig) -> Result<String> {
+    if !spotify_configured(config) {
+        bail!("Spotify client ID, client secret, and redirect URL are required");
+    }
+
+    let spotify = build_spotify(config)?;
+    ensure_token(&spotify).await?;
+
+    let playback = spotify
+        .current_playback(None, Some(&[AdditionalType::Episode]))
+        .await
+        .context("failed to fetch current Spotify playback")?;
+
+    let is_playing = playback.as_ref().map(|item| item.is_playing).unwrap_or(false);
+    let current_device_id = playback
+        .as_ref()
+        .and_then(|item| item.device.id.as_ref().map(|id| id.to_string()));
+
+    let fallback_target = find_target_device(&spotify, &config.spotify_target_hint_list())
+        .await?
+        .and_then(|device| device.id.map(|id| id.to_string()));
+
+    let target_device_id = current_device_id.or(fallback_target);
+
+    if is_playing {
+        spotify
+            .pause_playback(target_device_id.as_deref())
+            .await
+            .context("failed to pause Spotify playback")?;
+        return Ok("Paused Spotify playback".into());
+    }
+
+    spotify
+        .resume_playback(target_device_id.as_deref(), None)
+        .await
+        .context("failed to resume Spotify playback")?;
+    Ok("Resumed Spotify playback".into())
+}
+
+pub async fn skip_next(config: &AppConfig) -> Result<String> {
+    if !spotify_configured(config) {
+        bail!("Spotify client ID, client secret, and redirect URL are required");
+    }
+
+    let spotify = build_spotify(config)?;
+    ensure_token(&spotify).await?;
+    spotify
+        .next_track(None)
+        .await
+        .context("failed to skip to the next Spotify track")?;
+    Ok("Skipped to the next track".into())
+}
+
+pub async fn skip_previous(config: &AppConfig) -> Result<String> {
+    if !spotify_configured(config) {
+        bail!("Spotify client ID, client secret, and redirect URL are required");
+    }
+
+    let spotify = build_spotify(config)?;
+    ensure_token(&spotify).await?;
+    spotify
+        .previous_track(None)
+        .await
+        .context("failed to return to the previous Spotify track")?;
+    Ok("Went back to the previous track".into())
+}
+
 pub async fn start_on_tv(config: &AppConfig) -> Result<String> {
     let firetv_result = crate::firetv::prepare_spotify_session(&config.firetv_ip)?;
     let spotify_result = toggle_on_tv(config).await?;
@@ -341,6 +455,74 @@ async fn find_target_device(
     }
 
     Ok(None)
+}
+
+async fn fetch_now_playing(spotify: &AuthCodeSpotify) -> Result<Option<SpotifyNowPlaying>> {
+    let playback = spotify
+        .current_playback(None, Some(&[AdditionalType::Episode]))
+        .await?;
+
+    let Some(playback) = playback else {
+        return Ok(None);
+    };
+
+    let progress_ms = playback.progress.map(|value| value.num_milliseconds().max(0) as u64);
+    let is_playing = playback.is_playing;
+
+    let Some(item) = playback.item else {
+        return Ok(Some(SpotifyNowPlaying {
+            is_playing,
+            track_name: None,
+            artist_name: None,
+            album_name: None,
+            album_cover_url: None,
+            progress_ms,
+            duration_ms: None,
+        }));
+    };
+
+    match item {
+        rspotify::model::PlayableItem::Track(track) => {
+            let album_cover_url = track.album.images.first().map(|image| image.url.clone());
+            let artist_name = track
+                .artists
+                .iter()
+                .map(|artist| artist.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            Ok(Some(SpotifyNowPlaying {
+                is_playing,
+                track_name: Some(track.name),
+                artist_name: if artist_name.is_empty() { None } else { Some(artist_name) },
+                album_name: Some(track.album.name),
+                album_cover_url,
+                progress_ms,
+                duration_ms: Some(track.duration.num_milliseconds().max(0) as u64),
+            }))
+        }
+        rspotify::model::PlayableItem::Episode(episode) => {
+            let album_cover_url = episode.images.first().map(|image| image.url.clone());
+            Ok(Some(SpotifyNowPlaying {
+                is_playing,
+                track_name: Some(episode.name),
+                artist_name: Some(episode.show.name),
+                album_name: None,
+                album_cover_url,
+                progress_ms,
+                duration_ms: Some(episode.duration.num_milliseconds().max(0) as u64),
+            }))
+        }
+        rspotify::model::PlayableItem::Unknown(_) => Ok(Some(SpotifyNowPlaying {
+            is_playing,
+            track_name: Some("Unknown Spotify item".into()),
+            artist_name: None,
+            album_name: None,
+            album_cover_url: None,
+            progress_ms,
+            duration_ms: None,
+        })),
+    }
 }
 
 fn device_matches(device: &rspotify::model::Device, hints: &[String]) -> bool {

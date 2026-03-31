@@ -163,6 +163,46 @@ pub async fn spotify_toggle_tv() -> Result<ActionResult, String> {
 }
 
 #[command]
+pub async fn spotify_toggle_playback() -> Result<ActionResult, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let message = spotify::toggle_playback(&config)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(ActionResult { message })
+}
+
+#[command]
+pub async fn spotify_transfer_tv() -> Result<ActionResult, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let message = spotify::transfer_to_tv(&config)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(ActionResult { message })
+}
+
+#[command]
+pub async fn spotify_next_track() -> Result<ActionResult, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let message = spotify::skip_next(&config)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(ActionResult { message })
+}
+
+#[command]
+pub async fn spotify_previous_track() -> Result<ActionResult, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let message = spotify::skip_previous(&config)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(ActionResult { message })
+}
+
+#[command]
 pub async fn start_spotify_on_tv() -> Result<ActionResult, String> {
     let config = AppConfig::load().map_err(|e| e.to_string())?;
     let message = spotify::start_on_tv(&config)

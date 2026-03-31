@@ -41,6 +41,10 @@ pub fn run() {
             commands::spotify_finish_auth_via_local_callback,
             commands::spotify_debug_auth_flow,
             commands::spotify_toggle_tv,
+            commands::spotify_toggle_playback,
+            commands::spotify_transfer_tv,
+            commands::spotify_next_track,
+            commands::spotify_previous_track,
             commands::start_spotify_on_tv
         ])
         .run(tauri::generate_context!())
