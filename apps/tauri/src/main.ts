@@ -55,6 +55,7 @@ let {
   sidebarIndicatorVisible,
   recentActivity,
 } = appState;
+let flashTimeoutId: number | null = null;
 
 function render() {
   const issues = deriveIssues();
@@ -89,7 +90,7 @@ function render() {
             </div>
           </div>
         </header>
-        ${flashMessage ? `<p class="flash-banner ${flashIsError ? "is-error" : ""}">${escapeHtml(flashMessage)}</p>` : ""}
+        ${flashMessage ? `<div class="flash-banner ${flashIsError ? "is-error" : ""}" role="status" aria-live="polite">${escapeHtml(flashMessage)}</div>` : ""}
         <section class="view-shell">${renderView()}</section>
       </section>
     </main>
@@ -1385,8 +1386,19 @@ async function loadAll(message = "Configuration loaded.") {
 }
 
 function flash(message: string, isError = false) {
+  if (flashTimeoutId !== null) {
+    window.clearTimeout(flashTimeoutId);
+    flashTimeoutId = null;
+  }
   flashMessage = message;
   flashIsError = isError;
+  if (!message || busy) return;
+  flashTimeoutId = window.setTimeout(() => {
+    flashMessage = "";
+    flashIsError = false;
+    flashTimeoutId = null;
+    render();
+  }, isError ? 6500 : 4200);
 }
 
 function syncConfigFromInputs() {

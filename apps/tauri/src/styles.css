@@ -1170,11 +1170,19 @@ input[readonly] {
 }
 
 .flash-banner {
+  position: static;
+  z-index: auto;
+  display: inline-flex;
+  align-items: center;
+  max-width: min(720px, 100%);
+  width: fit-content;
   margin: 0;
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-radius: 12px;
   background: rgba(var(--accent-rgb), 0.08);
   border: 1px solid rgba(var(--accent-rgb), 0.16);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+  line-height: 1.4;
 }
 
 .flash-banner.is-error {
@@ -1287,6 +1295,10 @@ details[open] {
   .metric-grid,
   .remote-pad-row {
     grid-template-columns: 1fr;
+  }
+
+  .flash-banner {
+    max-width: 100%;
   }
 
   .topbar,
