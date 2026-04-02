@@ -57,6 +57,7 @@ let {
   sidebarIndicatorLeft,
   sidebarIndicatorVisible,
   recentActivity,
+  spotifyTargetPickerOpen,
   spotifyPollingPaused,
 } = appState;
 let flashTimeoutId: number | null = null;
@@ -94,6 +95,7 @@ function render() {
       fireTvAppFilter,
       spotifyAuthUrl,
       spotifyCallbackInput,
+      spotifyTargetPickerOpen,
       editingBindingId,
       newBindingLabel,
       newBindingHotkey,
@@ -224,6 +226,7 @@ function bindEvents() {
       if (view) {
         currentView = view;
         issuesOpen = false;
+        spotifyTargetPickerOpen = false;
         render();
       }
     }),
@@ -274,9 +277,23 @@ function bindEvents() {
   document.querySelector("#spotify-send-to-tv-button")?.addEventListener("click", () => void transferSpotifyToTv());
   document.querySelector("#spotify-previous-button")?.addEventListener("click", () => void previousSpotifyTrack());
   document.querySelector("#spotify-next-button")?.addEventListener("click", () => void nextSpotifyTrack());
-  document.querySelector<HTMLSelectElement>("#spotify-target-device-select")?.addEventListener("change", (event) => {
-    const targetId = (event.currentTarget as HTMLSelectElement).value.trim();
-    void setSpotifyTargetDevice(targetId);
+  document.querySelector("#spotify-target-picker-button")?.addEventListener("click", () => {
+    if (busy) return;
+    spotifyTargetPickerOpen = !spotifyTargetPickerOpen;
+    render();
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-spotify-target-id]").forEach((button) =>
+    button.addEventListener("click", () => {
+      const targetId = button.dataset.spotifyTargetId?.trim() ?? "";
+      spotifyTargetPickerOpen = false;
+      void setSpotifyTargetDevice(targetId);
+    }),
+  );
+  document.querySelector(".workspace")?.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!spotifyTargetPickerOpen || target?.closest(".spotify-target-picker")) return;
+    spotifyTargetPickerOpen = false;
+    render();
   });
   document.querySelectorAll<HTMLButtonElement>(".spotify-inline-action").forEach((button) =>
     button.addEventListener("click", () => {
@@ -723,7 +740,7 @@ async function pollSpotifyStatus() {
 }
 
 function shouldPollSpotify() {
-  return currentView === "spotify" && !spotifyPollingPaused;
+  return currentView === "spotify" && !spotifyPollingPaused && !spotifyTargetPickerOpen;
 }
 
 function syncSpotifyPolling() {

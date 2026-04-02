@@ -10,6 +10,7 @@ type SpotifyDeps = {
   currentSpotifyDebug: SpotifyAuthDebug | null;
   spotifyAuthUrl: string;
   spotifyCallbackInput: string;
+  spotifyTargetPickerOpen: boolean;
   recentActivity: Activity[];
 };
 
@@ -20,6 +21,7 @@ export function renderSpotify({
   currentSpotifyDebug,
   spotifyAuthUrl,
   spotifyCallbackInput,
+  spotifyTargetPickerOpen,
   recentActivity,
 }: SpotifyDeps) {
   const authStatus = currentSpotifyStatus?.authenticated ? "Active" : "Missing";
@@ -49,7 +51,7 @@ export function renderSpotify({
   const targetStatus = currentSpotifyStatus?.target_found ? targetState : "Missing";
   const devices = currentSpotifyStatus?.available_devices ?? [];
   const selectedTargetId = currentSpotifyStatus?.target_id ?? currentConfig.spotify_selected_device_id.trim();
-  const targetSelectDisabled = busy || !currentSpotifyStatus?.authenticated || devices.length === 0;
+  const targetPickerDisabled = busy || !currentSpotifyStatus?.authenticated || devices.length === 0;
   const playbackStatus = currentSpotifyStatus?.playback_on_target
     ? nowPlaying?.is_playing
       ? "Active"
@@ -173,22 +175,14 @@ export function renderSpotify({
               <div class="spotify-status-side">
                 ${
                   currentSpotifyStatus?.authenticated && devices.length
-                    ? `<select class="spotify-target-select ${currentSpotifyStatus?.target_ambiguous ? "is-ambiguous" : ""}" id="spotify-target-device-select" ${targetSelectDisabled ? "disabled" : ""} aria-label="Spotify playback target">
-                        ${
-                          currentSpotifyStatus?.target_ambiguous && !selectedTargetId
-                            ? `<option value="">Select a TV target</option>`
-                            : ""
-                        }
-                        ${devices
-                          .filter((device) => device.id)
-                          .map((device) => {
-                            const id = device.id ?? "";
-                            const activeLabel = device.is_active ? " · active" : "";
-                            const hintLabel = device.matches_hints ? " · hint match" : "";
-                            return `<option value="${escapeHtml(id)}" ${id === selectedTargetId ? "selected" : ""}>${escapeHtml(device.name)}${escapeHtml(activeLabel)}${escapeHtml(hintLabel)}</option>`;
-                          })
-                          .join("")}
-                      </select>`
+                    ? renderSpotifyTargetPicker({
+                        devices,
+                        selectedTargetId,
+                        targetName: currentSpotifyStatus?.target_name ?? "Select TV target",
+                        open: spotifyTargetPickerOpen,
+                        disabled: targetPickerDisabled,
+                        ambiguous: Boolean(currentSpotifyStatus?.target_ambiguous),
+                      })
                     : `<span class="spotify-inline-status ${targetTone}">${escapeHtml(targetStatus)}</span>`
                 }
               </div>
@@ -275,4 +269,80 @@ function formatDuration(value: number | null) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function renderSpotifyTargetPicker({
+  devices,
+  selectedTargetId,
+  targetName,
+  open,
+  disabled,
+  ambiguous,
+}: {
+  devices: SpotifyStatus["available_devices"];
+  selectedTargetId: string;
+  targetName: string;
+  open: boolean;
+  disabled: boolean;
+  ambiguous: boolean;
+}) {
+  const selectedLabel = selectedTargetId ? targetName : "Select TV target";
+  return `
+    <div class="spotify-target-picker ${open ? "is-open" : ""}">
+      <button
+        class="spotify-target-trigger ${ambiguous && !selectedTargetId ? "is-ambiguous" : ""}"
+        id="spotify-target-picker-button"
+        type="button"
+        ${disabled ? "disabled" : ""}
+        aria-expanded="${open ? "true" : "false"}"
+        aria-haspopup="listbox"
+      >
+        <span class="spotify-target-trigger-icon">${icon("tv-2")}</span>
+        <span class="spotify-target-trigger-label">${escapeHtml(selectedLabel)}</span>
+        <span class="spotify-target-trigger-chevron">${icon("chevron-down")}</span>
+      </button>
+
+      ${
+        open
+          ? `<div class="spotify-target-popover" role="listbox" aria-label="Spotify playback target">
+              ${devices
+                .filter((device) => device.id)
+                .map((device) => {
+                  const id = device.id ?? "";
+                  const selected = id === selectedTargetId;
+                  return `
+                    <button
+                      class="spotify-device-option ${selected ? "is-selected" : ""}"
+                      data-spotify-target-id="${escapeHtml(id)}"
+                      type="button"
+                      role="option"
+                      aria-selected="${selected ? "true" : "false"}"
+                    >
+                      <span class="spotify-device-option-icon">${icon(deviceIconName(device.name))}</span>
+                      <span class="spotify-device-option-copy">
+                        <strong>${escapeHtml(device.name)}</strong>
+                        <span>${escapeHtml(device.is_active ? "Active device" : device.is_restricted ? "Restricted" : "Available")}</span>
+                      </span>
+                      <span class="spotify-device-option-meta">
+                        ${device.matches_hints ? `<span class="spotify-device-hint-dot" title="Matches target hints"></span>` : ""}
+                        ${selected ? `<span class="spotify-device-selected-icon">${icon("check")}</span>` : ""}
+                      </span>
+                    </button>
+                  `;
+                })
+                .join("")}
+            </div>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+function deviceIconName(name: string) {
+  const normalized = name.toLowerCase();
+  if (normalized.includes("fire") || normalized.includes("tv")) return "tv-2";
+  if (normalized.includes("echo") || normalized.includes("speaker")) return "speaker";
+  if (normalized.includes("computer") || normalized.includes("desktop") || normalized.includes("pc")) return "monitor";
+  if (normalized.includes("phone") || normalized.includes("mobile")) return "smartphone";
+  return "speaker";
 }

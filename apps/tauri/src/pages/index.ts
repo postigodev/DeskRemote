@@ -35,6 +35,7 @@ type RenderViewDeps = {
   fireTvAppFilter: string;
   spotifyAuthUrl: string;
   spotifyCallbackInput: string;
+  spotifyTargetPickerOpen: boolean;
   editingBindingId: string;
   newBindingLabel: string;
   newBindingHotkey: string;
@@ -84,6 +85,7 @@ export function renderView(deps: RenderViewDeps) {
         currentSpotifyDebug: deps.currentSpotifyDebug,
         spotifyAuthUrl: deps.spotifyAuthUrl,
         spotifyCallbackInput: deps.spotifyCallbackInput,
+        spotifyTargetPickerOpen: deps.spotifyTargetPickerOpen,
         recentActivity: deps.recentActivity,
       });
     case "quick-access":

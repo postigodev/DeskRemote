@@ -65,6 +65,7 @@ struct TargetDevice {
 #[derive(Debug, Clone)]
 struct TargetResolution {
     device: Option<TargetDevice>,
+    selected_missing: bool,
     ambiguous: bool,
 }
 
@@ -158,7 +159,9 @@ pub async fn get_status(config: &AppConfig) -> Result<SpotifyStatus> {
             None,
             false,
             None,
-            if target_resolution.ambiguous {
+            if target_resolution.selected_missing {
+                "Selected Spotify TV target is unavailable. Pick another device or open Spotify on that TV.".into()
+            } else if target_resolution.ambiguous {
                 "Multiple Spotify TV targets match your hints. Select one manually.".into()
             } else {
                 "Spotify authenticated, but no target TV device matched the configured hints".into()
@@ -504,6 +507,10 @@ async fn resolve_control_target(config: &AppConfig, spotify: &AuthCodeSpotify) -
             return Ok(device);
         }
 
+        if resolution.selected_missing {
+            bail!("Selected Spotify TV target is unavailable. Pick another device or open Spotify on that TV.");
+        }
+
         if resolution.ambiguous {
             bail!("Multiple Spotify TV targets match your hints. Select one manually.");
         }
@@ -545,10 +552,17 @@ fn resolve_target_device(config: &AppConfig, devices: &[SpotifyDevice]) -> Targe
                         id,
                         name: device.name.clone(),
                     }),
+                    selected_missing: false,
                     ambiguous: false,
                 };
             }
         }
+
+        return TargetResolution {
+            device: None,
+            selected_missing: true,
+            ambiguous: false,
+        };
     }
 
     let matched_devices = devices
@@ -564,6 +578,7 @@ fn resolve_target_device(config: &AppConfig, devices: &[SpotifyDevice]) -> Targe
 
     TargetResolution {
         device: matched_devices.first().cloned().filter(|_| matched_devices.len() == 1),
+        selected_missing: false,
         ambiguous: matched_devices.len() > 1,
     }
 }

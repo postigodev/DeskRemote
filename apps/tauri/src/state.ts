@@ -56,5 +56,6 @@ export const appState = {
   sidebarIndicatorLeft: 12,
   sidebarIndicatorVisible: false,
   recentActivity: [] as Activity[],
+  spotifyTargetPickerOpen: false,
   spotifyPollingPaused: false,
 };
