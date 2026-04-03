@@ -6,10 +6,12 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager,
 };
+use tauri_plugin_notification::NotificationExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
@@ -85,13 +87,17 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             "start_spotify_on_tv" => {
                 let app_handle = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    let _ = run_start_spotify_on_tv(&app_handle).await;
+                    if let Err(error) = run_start_spotify_on_tv(&app_handle).await {
+                        notify_tray_error(&app_handle, "Start Spotify On TV failed", &error.to_string());
+                    }
                 });
             }
             "run_first_binding" => {
                 let app_handle = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    let _ = run_first_binding(&app_handle).await;
+                    if let Err(error) = run_first_binding(&app_handle).await {
+                        notify_tray_error(&app_handle, "Run First Binding failed", &error.to_string());
+                    }
                 });
             }
             "quit" => {
@@ -144,4 +150,13 @@ async fn run_first_binding(app: &AppHandle) -> anyhow::Result<()> {
         let _ = window.emit("tray-action", &first_binding.id);
     }
     Ok(())
+}
+
+fn notify_tray_error(app: &AppHandle, title: &str, message: &str) {
+    let _ = app
+        .notification()
+        .builder()
+        .title(title)
+        .body(message)
+        .show();
 }
