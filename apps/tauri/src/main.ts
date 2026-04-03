@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import {
   isRegistered as isGlobalShortcutRegistered,
   register as registerGlobalShortcut,
@@ -516,6 +517,32 @@ async function executeBinding(id: string) {
   } catch (error) {
     busy = false;
     flash(asMessage(error), true);
+    render();
+  }
+}
+
+async function syncAfterTrayAction(actionId: string) {
+  if (busy) return;
+
+  try {
+    currentFireTvStatus = await api.fireTvStatus(currentConfig.firetv_ip);
+    currentSpotifyStatus = await api.spotifyStatus();
+    currentHealth = await api.healthCheck();
+
+    const binding = currentBindings.find((item) => item.id === actionId);
+    const activityText =
+      actionId === "start_spotify_on_tv"
+        ? "Tray action ran: Start Spotify On TV"
+        : binding
+          ? `Tray action ran: ${binding.label}`
+          : "Tray action completed.";
+
+    flash(activityText);
+    addActivity(activityText, "success");
+    render();
+  } catch (error) {
+    flash(asMessage(error), true);
+    addActivity(asMessage(error), "error");
     render();
   }
 }
@@ -1196,5 +1223,9 @@ window.addEventListener("resize", syncSidebarIndicator);
 window.addEventListener("focus", handleSpotifyPollingVisibility);
 window.addEventListener("blur", handleSpotifyPollingVisibility);
 document.addEventListener("visibilitychange", handleSpotifyPollingVisibility);
+
+void listen<string>("tray-action", (event) => {
+  void syncAfterTrayAction(event.payload);
+});
 
 void loadAll();
