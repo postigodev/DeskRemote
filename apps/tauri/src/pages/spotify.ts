@@ -123,7 +123,11 @@ export function renderSpotifySessionLayout({
   SpotifyDeps,
   "busy" | "currentConfig" | "currentSpotifyStatus" | "spotifyTargetPickerOpen" | "recentActivity"
 >) {
-  const authStatus = currentSpotifyStatus?.authenticated ? "Active" : "Missing";
+  const authStatus = currentSpotifyStatus?.authenticated
+    ? "Active"
+    : currentSpotifyStatus?.summary.toLowerCase().includes("expired")
+      ? "Needs re-auth"
+      : "Missing";
   const targetState = currentSpotifyStatus?.target_name ?? "Not detected";
   const activity = recentActivity
     .filter((item) => {
@@ -216,7 +220,10 @@ export function renderSpotifySessionLayout({
                       <div class="spotify-now-playing-head">
                         <p class="panel-kicker">Now playing</p>
                         <h3>Spotify authentication required</h3>
-                        <p class="spotify-now-playing-artist">Authenticate Spotify to load playback details and TV transport controls.</p>
+                        <p class="spotify-now-playing-artist">${escapeHtml(
+                          currentSpotifyStatus?.summary ??
+                            "Authenticate Spotify to load playback details and TV transport controls.",
+                        )}</p>
                       </div>
                     </div>
                   `
@@ -239,7 +246,7 @@ export function renderSpotifySessionLayout({
                         ${icon("skip-forward")}
                       </button>
                     `
-                    : `<button class="button-secondary" id="spotify-start-auth-button" type="button" ${busy ? "disabled" : ""}>Authenticate</button>`
+                    : `<button class="button-secondary" id="spotify-start-auth-button" type="button" ${busy ? "disabled" : ""}>${escapeHtml(authStatus === "Needs re-auth" ? "Re-authenticate" : "Authenticate")}</button>`
                 }
               </div>
               <div class="spotify-player-utilities">

@@ -116,8 +116,23 @@ pub async fn get_status(config: &AppConfig) -> Result<SpotifyStatus> {
         .get_authorize_url(false)
         .context("failed to generate Spotify authorize URL")?;
 
-    let authenticated = ensure_token(&spotify).await.is_ok();
+    let auth_result = ensure_token(&spotify).await;
+    let authenticated = auth_result.is_ok();
     if !authenticated {
+        let auth_summary = auth_result
+            .err()
+            .map(|error| {
+                let detail = error.to_string();
+                if detail.contains("failed to refresh expired Spotify token") {
+                    "Your Spotify session expired. Re-authenticate Spotify to continue.".to_string()
+                } else if detail.contains("Spotify is not authenticated yet") {
+                    "Spotify is configured but not authenticated yet.".to_string()
+                } else {
+                    format!("Spotify authentication is unavailable. {detail}")
+                }
+            })
+            .unwrap_or_else(|| "Spotify is configured but not authenticated yet.".into());
+
         return Ok(SpotifyStatus {
             configured: true,
             authenticated: false,
@@ -129,7 +144,7 @@ pub async fn get_status(config: &AppConfig) -> Result<SpotifyStatus> {
             playback_on_target: false,
             playback_device_name: None,
             now_playing: None,
-            summary: "Spotify is configured but not authenticated yet".into(),
+            summary: auth_summary,
             auth_url: Some(auth_url),
             token_cache_path,
         });
@@ -710,7 +725,11 @@ async fn exchange_callback_or_code(spotify: &AuthCodeSpotify, code_or_callback: 
     let code = if code_or_callback.contains("://") {
         spotify
             .parse_response_code(code_or_callback)
-            .ok_or_else(|| anyhow!("failed to parse Spotify callback URL or validate its state"))?
+        .ok_or_else(|| {
+            anyhow!(
+                "That login response belongs to an older auth request or could not be parsed. Start Spotify auth again."
+            )
+        })?
     } else {
         extract_auth_code(code_or_callback)?
     };
@@ -767,7 +786,11 @@ async fn receive_auth_code_from_local_callback(
 
     spotify
         .parse_response_code(&redirect_full_url)
-        .ok_or_else(|| anyhow!("failed to parse Spotify callback URL or validate its state"))
+        .ok_or_else(|| {
+            anyhow!(
+                "That Spotify callback belongs to an older auth request or could not be validated. Start Spotify auth again."
+            )
+        })
 }
 
 fn token_cache_path() -> Result<PathBuf> {

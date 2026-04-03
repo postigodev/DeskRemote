@@ -25,6 +25,11 @@ export function readinessRows(
   const fireTvConnected = Boolean(currentFireTvStatus?.connected);
   const tvAwake = currentFireTvStatus?.screen_awake === true;
   const spotifyAuthed = Boolean(currentSpotifyStatus?.authenticated);
+  const spotifyNeedsReauth = Boolean(
+    currentSpotifyStatus &&
+      !currentSpotifyStatus.authenticated &&
+      currentSpotifyStatus.summary.toLowerCase().includes("expired"),
+  );
   const targetFound = Boolean(currentSpotifyStatus?.target_found);
 
   return [
@@ -52,8 +57,10 @@ export function readinessRows(
     },
     {
       label: "Spotify authenticated",
-      detail: spotifyAuthed ? "Authentication active" : "Spotify needs authorization before transfer",
-      status: spotifyAuthed ? "Ready" : "Needs auth",
+      detail: spotifyAuthed
+        ? "Authentication active"
+        : currentSpotifyStatus?.summary || "Spotify needs authorization before transfer",
+      status: spotifyAuthed ? "Ready" : spotifyNeedsReauth ? "Needs re-auth" : "Needs auth",
       action: spotifyAuthed ? null : { kind: "view", view: "spotify", label: "Re-authenticate" },
       tone: spotifyAuthed ? "ready" : "error",
     },
@@ -94,8 +101,10 @@ export function deriveIssues(
   }
   if (currentSpotifyStatus && !currentSpotifyStatus.authenticated) {
     issues.push({
-      title: "Spotify authentication required",
-      detail: "Authenticate Spotify before trying to transfer playback.",
+      title: currentSpotifyStatus.summary.toLowerCase().includes("expired")
+        ? "Spotify session expired"
+        : "Spotify authentication required",
+      detail: currentSpotifyStatus.summary || "Authenticate Spotify before trying to transfer playback.",
       view: "spotify",
       actionLabel: "Open Spotify",
       tone: "error",
