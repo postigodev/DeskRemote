@@ -1,116 +1,126 @@
 # Sendo
 
-Sendo is a Windows desktop control app for Fire TV and Spotify.
+Sendo is a Windows desktop utility for orchestrating Fire TV control and Spotify playback from one local control surface.
 
-The core flow is:
+## Screenshot
 
-`Wake TV -> open Spotify on Fire TV -> detect target -> transfer or toggle playback`
+![Sendo Home](assets/sendo-home.png)
 
-This is no longer a scaffold. The app now has a working Tauri desktop shell, a modularized TypeScript frontend, a Rust backend, persistent local settings, tray integration, reusable bindings, and global hotkeys.
+## What is Sendo?
 
-## What Works Today
+Sendo is a Tauri desktop app that coordinates two different control planes:
 
-- Fire TV control over ADB over TCP
-- persistent local app configuration
-- Fire TV connection checks and wake flow
-- Fire TV remote actions and media keys
-- Fire TV app scan, cache, filter, and launch
-- Spotify OAuth with localhost callback
-- Spotify token cache and target-device matching by hints
-- `Start Spotify on TV` end-to-end flow
-- Spotify playback toggle and transfer logic
-- reusable bindings with optional global hotkeys
-- tray actions and tray-resident behavior
-- Home dashboard with Quick Access, Shortcuts, readiness, recent activity, and device snapshot
+- Fire TV device control over ADB
+- Spotify playback routing and transport control over Spotify Connect
 
-## Current UI Model
+The app is built around a practical workflow: wake the TV, launch Spotify on Fire TV, select the intended playback device, and control playback from the desktop without switching tools.
 
-The app is organized as a compact desktop utility, not a web dashboard.
+## Positioning
 
-Navigation:
+Sendo is not a media dashboard and not a remote-desktop tool.
 
-- `Home`
-- `Playback`
-  - `Spotify`
-  - `Quick Access`
-  - `Hotkeys`
-- `Fire TV`
-  - `ADB & Device`
-  - `Apps`
-  - `Remote`
-- `System`
-  - `Health`
-  - `General`
+It is a local device orchestration utility: the UI exposes control intent, while the backend executes concrete operations against Fire TV and Spotify with explicit state checks, target selection, and recovery paths.
 
-Highlights:
+## Core Idea
 
-- `Home` is the primary control surface
-- `Quick Access` shows favorite bindings used on Home
-- `Hotkeys` is focused on creating bindings first, with registered bindings as a secondary list
-- `Spotify` is centered around the active session and playback controls
-- `Health` and `General` use compact utility-style panels instead of dashboard cards
+Sendo separates **control** from **execution**.
 
-## Tech Stack
+- **Control layer**: a compact desktop UI for triggering actions, selecting targets, checking readiness, and managing bindings/hotkeys.
+- **Execution layer**: a Rust backend that owns ADB commands, Spotify OAuth/token handling, playback transfer, app launch, and persistent local config.
 
-- Rust workspace for backend and shared logic
-- Tauri v2 for the desktop shell
-- TypeScript + Vite for the frontend
-- Lucide for iconography
-- ADB over TCP for Fire TV communication
-- Spotify Web API through `rspotify`
+That separation keeps the UI responsive while longer device operations run in native command handlers, and it makes the app easier to reason about than a frontend that directly mixes UI state with shell/API side effects.
 
-## Project Structure
+## Architecture
 
-- `Cargo.toml`
-  Rust workspace root
-- `crates/core`
-  Shared application logic
-- `crates/core/src/config`
-  Persistent config model and local storage helpers
-- `crates/core/src/firetv`
-  Fire TV ADB integration, wake logic, status, remote actions, and app scanning
-- `crates/core/src/spotify`
-  Spotify OAuth, token cache, target matching, playback transfer, and toggle logic
-- `crates/core/src/bindings.rs`
-  Persistent bindings and reusable action execution
-- `apps/tauri`
-  Frontend app and Tauri shell
-- `apps/tauri/src/api.ts`
-  Frontend wrappers around Tauri commands
-- `apps/tauri/src/state.ts`
-  Shared frontend app state
-- `apps/tauri/src/types.ts`
-  Frontend types
-- `apps/tauri/src/utils.ts`
-  Small formatting and helper utilities
-- `apps/tauri/src/features`
-  Derived UI/domain logic such as bindings and readiness/status helpers
-- `apps/tauri/src/pages`
-  Page renderers for Home, Spotify, Quick Access, Hotkeys, Fire TV views, Health, and General
+```text
+TypeScript UI
+  -> Tauri command bridge
+    -> Rust app core
+      -> Fire TV over ADB/TCP
+      -> Spotify Web API / Spotify Connect
+      -> Local app data under %APPDATA%\Sendo
+```
+
+### System layers
+
 - `apps/tauri/src/ui`
-  Shared layout and reusable UI helpers
+  - App shell, sidebar, layout, and reusable UI primitives.
+- `apps/tauri/src/pages`
+  - Page-level renderers for Home, Spotify, Quick Access, Hotkeys, Fire TV tools, Health, and General.
+- `apps/tauri/src/features`
+  - Derived UI/domain logic such as binding presentation and readiness/status mapping.
 - `apps/tauri/src/main.ts`
-  Frontend bootstrap, root render, event wiring, and async actions
+  - Frontend bootstrap, event wiring, async actions, polling, tray-event sync, and root rendering.
 - `apps/tauri/src-tauri`
-  Tauri commands and native desktop entrypoint
+  - Native command bridge, tray setup, autostart integration, notifications, and window lifecycle behavior.
+- `crates/core/src/config`
+  - Persistent app config and AppData migration.
+- `crates/core/src/firetv`
+  - Fire TV status probing, wake/power control, remote key events, app scanning, app launching, and ADB timeout handling.
+- `crates/core/src/spotify`
+  - Spotify OAuth, token cache, target-device resolution, explicit device selection, playback transfer, transport control, and now-playing state.
+- `crates/core/src/bindings.rs`
+  - Reusable action bindings, favorite ordering, hotkey metadata, and persisted binding storage.
 
-## Running The App
+## Features
 
-From the Tauri app directory:
+- One-click `Start Spotify on TV` flow
+- Fire TV readiness checks, wake, power off, and remote navigation
+- Fire TV app scanning, cached app list, filtering, and app launch
+- Spotify OAuth with local callback and token cache
+- Explicit Spotify target-device picker for multi-TV setups
+- Now Playing view with album art, track, artist, progress, and transport controls
+- Transfer playback to the selected TV target
+- Reusable bindings for Fire TV actions, app launches, and Spotify actions
+- Global hotkeys for bindings
+- Quick Access favorites grid with drag-to-reorder
+- Tray actions and close-to-tray behavior
+- Launch at startup + start minimized to tray
+- Health and readiness panels with actionable recovery paths
+- Local JSON storage under `%APPDATA%\Sendo`
+
+## Quick Start
+
+### Requirements
+
+- Windows
+- Node.js
+- `pnpm`
+- Rust toolchain
+- Android Platform Tools (`adb`) in `PATH`
+- Fire TV with ADB debugging enabled
+- Spotify Premium
+- Spotify Developer app credentials
+
+### Clone and install
+
+```powershell
+git clone <repo-url>
+cd desk-remote\apps\tauri
+pnpm install
+```
+
+### Run in development
 
 ```powershell
 cd C:\Users\akuma\repos\desk-remote\apps\tauri
 pnpm tauri dev
 ```
 
-From the repository root:
+### Build a Windows installer
 
 ```powershell
-cd C:\Users\akuma\repos\desk-remote
-.\launch.ps1
+cd C:\Users\akuma\repos\desk-remote\apps\tauri
+npm run tauri -- build
 ```
 
-Useful validation commands:
+Build outputs:
+
+- `target/release/sendo.exe`
+- `target/release/bundle/nsis/Sendo_0.1.0_x64-setup.exe`
+- `target/release/bundle/msi/Sendo_0.1.0_x64_en-US.msi`
+
+### Validation
 
 ```powershell
 cd C:\Users\akuma\repos\desk-remote
@@ -122,117 +132,49 @@ cd C:\Users\akuma\repos\desk-remote\apps\tauri
 .\node_modules\.bin\tsc.CMD --noEmit
 ```
 
-## Requirements
+## Main Flow
 
-- Windows
-- Node.js
-- `pnpm`
-- Rust toolchain
-- Android Platform Tools (`adb`) available in `PATH`
-- Spotify Premium account
-- Spotify Developer app credentials
-- Fire TV with ADB debugging enabled
+1. Configure the Fire TV IP address in `ADB & Device`.
+2. Configure Spotify OAuth credentials and redirect URL in `Spotify`.
+3. Authenticate Spotify and select the exact Spotify Connect target device.
+4. Use `Start Spotify on TV` from Home, tray, or a binding.
+5. Sendo connects to the TV over ADB, wakes it if needed, launches Spotify, and transfers playback to the selected Spotify device.
+6. Control playback from the Spotify page, Remote page, Quick Access, or global hotkeys.
 
-## Spotify Setup
+## Why it exists
 
-Create a Spotify app in the Spotify Developer Dashboard.
+Fire TV control and Spotify Connect solve different parts of the same living-room workflow, but they do not share one clean desktop control surface.
 
-Required values in Sendo:
+Sendo exists to bridge that gap with a system that is explicit about device state, playback target identity, and orchestration order. The app favors deterministic local control over ad-hoc manual steps, while still exposing enough status to debug failures when a TV, token, or network hop is not ready.
 
-- `Spotify Client ID`
-- `Spotify Client Secret`
-- `Spotify Redirect URL`
+## Tech Stack
 
-Recommended redirect URL:
+- Rust
+- Tauri v2
+- TypeScript
+- Vite
+- Lucide
+- Spotify Web API via `rspotify`
+- ADB over TCP
 
-```text
-http://127.0.0.1:8888/callback
-```
+## Roadmap
 
-That exact URL must also be registered in the Spotify Developer Dashboard.
+- Add an app setting for richer tray/startup behavior
+- Improve Fire TV app metadata beyond package-name inference
+- Add stronger test coverage around Spotify target resolution and binding persistence
+- Continue shrinking `main.ts` by moving controller logic into dedicated modules
+- Consider packaging docs and release notes for public distribution
 
-## Fire TV Setup
+## Contributing
 
-On the TV:
+Issues and pull requests are welcome.
 
-- enable Developer Options
-- enable ADB debugging
-- make sure the device is reachable on the local network
-- accept the first ADB authorization prompt on the TV
+If you contribute, please keep the project biased toward:
 
-In Sendo:
-
-- enter the Fire TV IP
-- use `Test connection`
-- use `Connect` or `Wake if asleep`
-
-## Bindings, Quick Access, Tray, And Hotkeys
-
-Bindings are the reusable unit behind Quick Access, tray actions, and global hotkeys.
-
-Supported binding actions:
-
-- `start_spotify_on_tv`
-- `spotify_toggle_tv`
-- `fire_tv_key`
-- `launch_app`
-
-Notes:
-
-- a binding can be marked as favorite to appear in Quick Access on Home
-- a binding can have a global hotkey, or no hotkey at all
-- the UI includes `Record hotkey`
-- if a hotkey fails to register, Windows or another app may already be using it
-
-Example bindings:
-
-- Label: `Watch Spotify on TV`
-  Hotkey: `Alt+L`
-  Action type: `start_spotify_on_tv`
-- Label: `TV Home`
-  Hotkey: `Alt+H`
-  Action type: `fire_tv_key`
-  Action value: `home`
-- Label: `Open Netflix`
-  Hotkey: `Alt+N`
-  Action type: `launch_app`
-
-Tray behavior:
-
-- closing the window hides the app instead of quitting
-- the app stays available in the tray
-- tray actions can trigger bindings and reopen the app
-
-## Local Data
-
-The app stores local files under the app data directory:
-
-- app config JSON
-- Spotify token cache JSON
-- Fire TV app cache JSON
-- bindings JSON
-
-On Windows this resolves from:
-
-```text
-%APPDATA%\Sendo
-```
-
-If a legacy `%APPDATA%\Desk Remote` folder exists and `%APPDATA%\Sendo` does not, Sendo migrates that folder automatically on first launch.
-
-## Known Notes
-
-- Windows Defender or App Control may block locally built `tauri.exe`
-- `cargo run` from the workspace root is not the intended dev workflow
-- some Tauri metadata is still scaffold-level and can be cleaned up later
-- Fire TV app scan currently prioritizes useful launching behavior over rich metadata
-
-## Near-Term Focus
-
-- continue splitting frontend controller logic out of `main.ts`
-- improve the remaining secondary pages so they match the Home quality bar
-- improve Fire TV app metadata and launcher discovery
-- strengthen diagnostics, tests, and error handling
+- explicit control flow over hidden magic
+- small, readable modules with clear boundaries
+- actionable status and error states
+- a compact desktop-utility UI, not a web dashboard aesthetic
 
 ## License
 
