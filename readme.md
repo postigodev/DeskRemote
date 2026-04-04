@@ -1,6 +1,6 @@
-# Desk Remote
+# Sendo
 
-Desk Remote is a Windows desktop control app for Fire TV and Spotify.
+Sendo is a Windows desktop control app for Fire TV and Spotify.
 
 The core flow is:
 
@@ -137,7 +137,7 @@ cd C:\Users\akuma\repos\desk-remote\apps\tauri
 
 Create a Spotify app in the Spotify Developer Dashboard.
 
-Required values in Desk Remote:
+Required values in Sendo:
 
 - `Spotify Client ID`
 - `Spotify Client Secret`
@@ -160,7 +160,7 @@ On the TV:
 - make sure the device is reachable on the local network
 - accept the first ADB authorization prompt on the TV
 
-In Desk Remote:
+In Sendo:
 
 - enter the Fire TV IP
 - use `Test connection`
@@ -215,8 +215,10 @@ The app stores local files under the app data directory:
 On Windows this resolves from:
 
 ```text
-%APPDATA%\Desk Remote
+%APPDATA%\Sendo
 ```
+
+If a legacy `%APPDATA%\Desk Remote` folder exists and `%APPDATA%\Sendo` does not, Sendo migrates that folder automatically on first launch.
 
 ## Known Notes
 

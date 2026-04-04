@@ -54,7 +54,7 @@ pub fn run() {
 }
 
 fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let show_item = MenuItem::with_id(app, "show_window", "Show Desk Remote", true, None::<&str>)?;
+    let show_item = MenuItem::with_id(app, "show_window", "Show Sendo", true, None::<&str>)?;
     let start_spotify_item =
         MenuItem::with_id(app, "start_spotify_on_tv", "Start Spotify On TV", true, None::<&str>)?;
     let run_first_binding_item =
@@ -74,7 +74,8 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     )?;
 
     TrayIconBuilder::with_id("desk-remote-tray")
-        .tooltip("Desk Remote")
+        .icon(app.default_window_icon().expect("missing default window icon").clone())
+        .tooltip("Sendo")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app: &AppHandle, event| match event.id.as_ref() {

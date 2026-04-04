@@ -36,7 +36,7 @@ export function renderHealth({
           <span class="health-status-icon">${icon(issues.length ? "triangle-alert" : "circle-check-big")}</span>
           <div>
             <strong>${escapeHtml(issues.length ? `${issues.length} issue${issues.length === 1 ? "" : "s"} need attention` : "All systems ready")}</strong>
-            <p>${escapeHtml(issues.length ? "The checks below show what is currently blocking or degraded." : "Desk Remote is ready for Spotify on TV.")}</p>
+            <p>${escapeHtml(issues.length ? "The checks below show what is currently blocking or degraded." : "Sendo is ready for Spotify on TV.")}</p>
           </div>
         </div>
         <div class="readiness-list">${readinessRows.map((row) => `<article class="readiness-row ${row.tone}"><div class="readiness-copy"><div class="readiness-heading"><span class="readiness-dot ${row.tone}"></span><h3>${escapeHtml(row.label)}</h3></div><p>${escapeHtml(row.detail)}</p>${row.action ? `<div class="readiness-inline-actions">${renderReadinessAction(row.action)}</div>` : ""}</div><div class="readiness-side"><span class="mini-tag ${row.tone}">${escapeHtml(row.status)}</span></div></article>`).join("")}</div>

@@ -22,7 +22,7 @@ export function renderGeneral({
         <div class="panel-header">
           <div>
             <p class="panel-kicker">Overview</p>
-            <h2>Desk Remote</h2>
+            <h2>Sendo</h2>
             <p class="panel-subcopy">Application info, local storage, and quick counts for the current setup.</p>
           </div>
         </div>

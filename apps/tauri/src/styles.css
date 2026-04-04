@@ -91,11 +91,9 @@ select {
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #97c8a4, #64856d);
-  color: #111715;
-  font-weight: 700;
-  display: grid;
-  place-items: center;
+  display: block;
+  object-fit: contain;
+  background: transparent;
 }
 
 .sidebar-brand p,

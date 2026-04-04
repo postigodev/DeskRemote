@@ -81,16 +81,43 @@ pub fn config_file_path() -> Result<PathBuf> {
 
 pub fn app_data_dir() -> Result<PathBuf> {
     if let Ok(appdata) = env::var("APPDATA") {
-        return Ok(PathBuf::from(appdata).join("Desk Remote"));
+        let base_dir = PathBuf::from(appdata);
+        return migrate_app_data_dir(base_dir.join("Sendo"), base_dir.join("Desk Remote"));
     }
 
     if let Ok(home) = env::var("HOME") {
-        return Ok(PathBuf::from(home).join(".desk-remote"));
+        let base_dir = PathBuf::from(home);
+        return migrate_app_data_dir(base_dir.join(".sendo"), base_dir.join(".desk-remote"));
     }
 
     Err(anyhow::anyhow!(
         "could not determine an application data directory"
     ))
+}
+
+fn migrate_app_data_dir(current_path: PathBuf, legacy_path: PathBuf) -> Result<PathBuf> {
+    if current_path.exists() || !legacy_path.exists() {
+        return Ok(current_path);
+    }
+
+    if let Some(parent) = current_path.parent() {
+        fs::create_dir_all(parent).with_context(|| {
+            format!(
+                "failed to create app data directory at {}",
+                parent.display()
+            )
+        })?;
+    }
+
+    fs::rename(&legacy_path, &current_path).with_context(|| {
+        format!(
+            "failed to migrate app data from {} to {}",
+            legacy_path.display(),
+            current_path.display()
+        )
+    })?;
+
+    Ok(current_path)
 }
 
 fn ensure_parent_dir(path: &Path) -> Result<()> {

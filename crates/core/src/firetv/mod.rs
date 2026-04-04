@@ -1,9 +1,18 @@
 use crate::config::app_data_dir;
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf, process::Command, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    fs,
+    path::PathBuf,
+    process::Command,
+    thread,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
 
 const DEFAULT_ADB_PORT: &str = "5555";
+const ADB_STATUS_TIMEOUT: Duration = Duration::from_secs(3);
+const ADB_ACTION_TIMEOUT: Duration = Duration::from_secs(12);
+const ADB_SCAN_TIMEOUT: Duration = Duration::from_secs(20);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -273,17 +282,17 @@ pub fn launch_app(ip: &str, package_name: &str) -> Result<String> {
 }
 
 fn adb_available() -> bool {
-    run_adb(&["version"]).is_ok()
+    run_adb_with_timeout(&["version"], ADB_STATUS_TIMEOUT).is_ok()
 }
 
 fn ensure_adb_available() -> Result<()> {
-    run_adb(&["version"])
+    run_adb_with_timeout(&["version"], ADB_STATUS_TIMEOUT)
         .map(|_| ())
         .map_err(|error| anyhow!("ADB is not available: {error}"))
 }
 
 fn connect(target: &str) -> Result<bool> {
-    let output = run_adb(&["connect", target])?;
+    let output = run_adb_with_timeout(&["connect", target], ADB_STATUS_TIMEOUT)?;
     let normalized = output.to_ascii_lowercase();
 
     if normalized.contains("cannot")
@@ -294,7 +303,7 @@ fn connect(target: &str) -> Result<bool> {
         return Ok(false);
     }
 
-    let devices = run_adb(&["devices"])?;
+    let devices = run_adb_with_timeout(&["devices"], ADB_STATUS_TIMEOUT)?;
     Ok(devices
         .lines()
         .skip(1)
@@ -348,7 +357,10 @@ fn key_code_for(action: FireTvAction) -> &'static str {
 }
 
 fn screen_is_on(target: &str) -> Result<bool> {
-    let output = run_adb(&["-s", target, "shell", "dumpsys", "power"])?;
+    let output = run_adb_with_timeout(
+        &["-s", target, "shell", "dumpsys", "power"],
+        ADB_STATUS_TIMEOUT,
+    )?;
     let normalized = output.to_ascii_lowercase();
 
     Ok(normalized.contains("minteractive=true")
@@ -364,31 +376,68 @@ fn ensure_awake(target: &str, max_tries: u32) -> Result<bool> {
             return Ok(true);
         }
 
-        run_adb(&["-s", target, "shell", "input", "keyevent", "224"])?;
-        std::thread::sleep(std::time::Duration::from_millis(800));
+        run_adb_with_timeout(
+            &["-s", target, "shell", "input", "keyevent", "224"],
+            ADB_ACTION_TIMEOUT,
+        )?;
+        thread::sleep(Duration::from_millis(800));
     }
 
     screen_is_on(target)
 }
 
 fn open_spotify(target: &str) -> Result<()> {
-    run_adb(&[
-        "-s",
-        target,
-        "shell",
-        "monkey",
-        "-p",
-        "com.spotify.tv.android",
-        "1",
-    ])?;
+    run_adb_with_timeout(
+        &[
+            "-s",
+            target,
+            "shell",
+            "monkey",
+            "-p",
+            "com.spotify.tv.android",
+            "1",
+        ],
+        ADB_ACTION_TIMEOUT,
+    )?;
     Ok(())
 }
 
 fn run_adb(args: &[&str]) -> Result<String> {
-    let output = Command::new("adb")
+    run_adb_with_timeout(args, ADB_ACTION_TIMEOUT)
+}
+
+fn run_adb_with_timeout(args: &[&str], wait_timeout: Duration) -> Result<String> {
+    let mut child = Command::new("adb")
         .args(args)
-        .output()
+        .spawn()
         .with_context(|| format!("failed to execute adb {}", args.join(" ")))?;
+
+    let start_time = Instant::now();
+    loop {
+        if child
+            .try_wait()
+            .with_context(|| format!("failed to wait for adb {}", args.join(" ")))?
+            .is_some()
+        {
+            break;
+        }
+
+        if start_time.elapsed() >= wait_timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            bail!(
+                "adb {} timed out after {}s",
+                args.join(" "),
+                wait_timeout.as_secs()
+            );
+        }
+
+        thread::sleep(Duration::from_millis(50));
+    }
+
+    let output = child
+        .wait_with_output()
+        .with_context(|| format!("failed to read adb {} output", args.join(" ")))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();

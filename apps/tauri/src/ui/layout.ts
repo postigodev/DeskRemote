@@ -1,3 +1,4 @@
+import sendoLogoUrl from "../assets/sendo.svg";
 import type { Issue, ViewId } from "../types";
 import { escapeHtml } from "../utils";
 import { issuePopover, navButton, navGroup } from "./shared";
@@ -38,8 +39,8 @@ export function renderAppShell({
       <aside class="sidebar">
         <div class="sidebar-top">
           <div class="sidebar-brand">
-            <div class="brand-mark">DR</div>
-            <div><strong>Desk Remote</strong><p>Media control utility</p></div>
+            <img class="brand-mark" src="${sendoLogoUrl}" alt="Sendo" />
+            <div><strong>Sendo</strong><p>Media control utility</p></div>
           </div>
           <nav class="sidebar-nav">
             <span class="nav-active-indicator" aria-hidden="true" style="top:${sidebarIndicatorTop}px;left:${sidebarIndicatorLeft}px;opacity:${sidebarIndicatorVisible ? "1" : "0"};"></span>
